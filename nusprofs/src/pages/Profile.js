@@ -1,14 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 
+const API_URL = 'https://nusprofs-api.onrender.com';
+
 export default function Profile() {
   const { id } = useParams();
-  const [prof, setProf] = useState(null);
+  const [prof, setProf]       = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError]     = useState(null);
 
   useEffect(() => {
-    fetch(`/professor/${id}/`, { headers: { Accept: 'application/json' } })
+    fetch(`${API_URL}/professor/${id}/`, {
+      headers: { Accept: 'application/json' }
+    })
       .then(res => {
         if (!res.ok) throw new Error(res.statusText);
         return res.json();
@@ -19,7 +23,7 @@ export default function Profile() {
   }, [id]);
 
   if (loading) return <p style={{ textAlign: 'center' }}>Loading…</p>;
-  if (error) return <p style={{ color: 'red', textAlign: 'center' }}>Error: {error}</p>;
+  if (error)   return <p style={{ color: 'red', textAlign: 'center' }}>Error: {error}</p>;
 
   return (
     <div
@@ -38,11 +42,11 @@ export default function Profile() {
 
         <h1 style={{ marginTop: '1rem', marginBottom: '1rem' }}>{prof.name}</h1>
 
-        {prof.title && <p><strong>Title:</strong> {prof.title}</p>}
-        {prof.faculty && <p><strong>Faculty:</strong> {prof.faculty}</p>}
+        {prof.title &&      <p><strong>Title:</strong> {prof.title}</p>}
+        {prof.faculty &&    <p><strong>Faculty:</strong> {prof.faculty}</p>}
         {prof.department && <p><strong>Department:</strong> {prof.department}</p>}
-        {prof.office && <p><strong>Office:</strong> {prof.office}</p>}
-        {prof.phone && <p><strong>Phone:</strong> {prof.phone}</p>}
+        {prof.office &&     <p><strong>Office:</strong> {prof.office}</p>}
+        {prof.phone &&      <p><strong>Phone:</strong> {prof.phone}</p>}
         {prof.average_rating != null && (
           <p><strong>Rating:</strong> {prof.average_rating}</p>
         )}

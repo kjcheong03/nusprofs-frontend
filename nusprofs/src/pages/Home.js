@@ -1,122 +1,158 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 
 export default function Home() {
-  const [query, setQuery] = useState("");
-  const [page, setPage] = useState(1);
-  const [results, setResults] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [hasNext, setHasNext] = useState(false);
+  // All professors state
+  const [allProfs, setAllProfs]             = useState([]);
+  const [displayedProfs, setDisplayedProfs] = useState([]);
+  const [loadingAll, setLoadingAll]         = useState(false);
+  const [errorAll, setErrorAll]             = useState(null);
 
-  const [facultiesData, setFacultiesData] = useState([]);
-  const [departmentsForSelectedFaculty, setDepartmentsForSelectedFaculty] = useState([]);
-  const [selectedFaculty, setSelectedFaculty] = useState("");
-  const [selectedDepartment, setSelectedDepartment] = useState("");
-  const [filterError, setFilterError] = useState(null);
+  // Search‐by‐name state 
+  const [query, setQuery]                   = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
 
-  // Fetch faculties and departments
+  // Faculty / department filter state
+  const [facultiesData, setFacultiesData]         = useState([]);
+  const [selectedFaculties, setSelectedFaculties] = useState([]);
+  const [selectedDepts, setSelectedDepts]         = useState([]);
+  const [filterError, setFilterError]             = useState(null);
+
+  // Show / hide filters
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Fetch all faculties + departments 
   useEffect(() => {
-    const fetchFilterOptions = async () => {
-      setFilterError(null);
-      try {
-        const res = await fetch("https://nusprofs-api.onrender.com/faculties/", {
-          headers: { Accept: "application/json" }
-        });
-        if (!res.ok) throw new Error(`Status ${res.status}: ${res.statusText}`);
-        const rawData = await res.json();
-        const formatted = Array.isArray(rawData)
-          ? rawData.map((f) => ({
-              faculty_name: f.name,
-              departments_list: Array.isArray(f.departments) ? f.departments.map((d) => d.name) : []
-            }))
-          : [];
+    setFilterError(null);
+    fetch("https://nusprofs-api.onrender.com/faculties/", {
+      headers: { Accept: "application/json" },
+    })
+      .then(res => {
+        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+        return res.json();
+      })
+      .then(raw => {
+        if (!Array.isArray(raw)) throw new Error("Invalid faculties data");
+        const formatted = raw.map(f => ({
+          faculty_name: f.name,
+          departments_list: Array.isArray(f.departments)
+            ? f.departments.map(d => d.name)
+            : [],
+        }));
         setFacultiesData(formatted);
-      } catch (e) {
-        console.error("Error fetching filter options:", e);
-        setFilterError("Could not load filter options. Please try again later.");
-        setFacultiesData([]);
-      }
-    };
-    fetchFilterOptions();
+      })
+      .catch(err => {
+        console.error(err);
+        setFilterError("Could not load filter options.");
+      });
   }, []);
 
-  // Update department dropdown when faculty changes
+  // Fetch page of /search/ 
   useEffect(() => {
-    if (selectedFaculty && facultiesData.length > 0) {
-      const facObj = facultiesData.find((f) => f.faculty_name === selectedFaculty);
-      setDepartmentsForSelectedFaculty(facObj ? facObj.departments_list : []);
-    } else {
-      setDepartmentsForSelectedFaculty([]);
-    }
-    setSelectedDepartment("");
-  }, [selectedFaculty, facultiesData]);
+    let cancelled = false;
+    setLoadingAll(true);
+    setErrorAll(null);
 
-  // Fetch professors from API
-  const fetchProfessors = useCallback(async (currentQuery, currentPage) => {
-    setLoading(true);
-    setError(null);
+    (async () => {
+      try {
+        let page = 1;
+        const all = [];
+        while (true) {
+          const res = await fetch(
+            `https://nusprofs-api.onrender.com/search/?page=${page}`,
+            { headers: { Accept: "application/json" } }
+          );
+          if (!res.ok) throw new Error(`Page ${page} failed`);
+          const data = await res.json();
+          all.push(...(data.results || []));
+          if (!data.next) break;
+          page++;
+        }
+        if (!cancelled) {
+          setAllProfs(all);
+          setDisplayedProfs(all);
+        }
+      } catch (err) {
+        console.error(err);
+        if (!cancelled) {
+          setErrorAll("Failed to load professors.");
+        }
+      } finally {
+        if (!cancelled) setLoadingAll(false);
+      }
+    })();
 
-    try {
-      const params = new URLSearchParams();
-      params.append("page", currentPage.toString());
-      if (currentQuery.trim()) params.append("q", currentQuery.trim());
-      if (selectedFaculty) params.append("faculty", selectedFaculty);
-      if (selectedDepartment) params.append("department", selectedDepartment);
+    return () => { cancelled = true; };
+  }, []);
 
-      const res = await fetch(`/search/?${params.toString()}`, {
-        headers: { Accept: "application/json" }
-      });
-      if (!res.ok) throw new Error(`Status ${res.status}: ${res.statusText}`);
-      const data = await res.json();
-
-      setResults(Array.isArray(data.results) ? data.results : []);
-      setHasNext(Boolean(data.next));
-    } catch (e) {
-      console.error("Fetch professors error:", e);
-      setError(e.message);
-      setResults([]);
-      setHasNext(false);
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedFaculty, selectedDepartment]);
-
-  // Fetch professors on query/filter/page change (debounced)
+  // Debounce query input
   useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchProfessors(query, page);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [query, page, selectedFaculty, selectedDepartment, fetchProfessors]);
+    const t = setTimeout(() => setDebouncedQuery(query.trim()), 500);
+    return () => clearTimeout(t);
+  }, [query]);
 
-  const handleQueryChange = (e) => {
-    setQuery(e.target.value);
-    setPage(1);
+  // Update displayedProfs when change dependencys
+  useEffect(() => {
+    if (loadingAll || errorAll) return;
+    let filtered = allProfs;
+
+    if (debouncedQuery) {
+      const q = debouncedQuery.toLowerCase();
+      filtered = filtered.filter(p => p.name.toLowerCase().includes(q));
+    }
+    if (selectedFaculties.length) {
+      filtered = filtered.filter(p =>
+        selectedFaculties.includes(p.faculty)
+      );
+    }
+    if (selectedDepts.length) {
+      filtered = filtered.filter(p =>
+        selectedDepts.includes(p.department)
+      );
+    }
+
+    setDisplayedProfs(filtered);
+  }, [
+    allProfs,
+    loadingAll,
+    errorAll,
+    debouncedQuery,
+    selectedFaculties,
+    selectedDepts,
+  ]);
+
+  // Toggle handlers
+  const toggleFaculty = name => {
+    setSelectedFaculties(prev => {
+      const has = prev.includes(name);
+      const next = has ? prev.filter(f => f !== name) : [...prev, name];
+      if (has) {
+        const fac = facultiesData.find(f => f.faculty_name === name);
+        if (fac) {
+          setSelectedDepts(d =>
+            d.filter(dep => !fac.departments_list.includes(dep))
+          );
+        }
+      }
+      return next;
+    });
   };
-  const handleFacultyChange = (e) => {
-    setSelectedFaculty(e.target.value);
-    setPage(1);
-  };
-  const handleDepartmentChange = (e) => {
-    setSelectedDepartment(e.target.value);
-    setPage(1);
+  const toggleDept = name => {
+    setSelectedDepts(prev =>
+      prev.includes(name) ? prev.filter(d => d !== name) : [...prev, name]
+    );
   };
 
-  // Filter professor according to selected faculty/department (if backend doesn't filter)
-  const filteredResults = results.filter((prof) => {
-    const matchesFaculty = selectedFaculty ? prof.faculty === selectedFaculty : true;
-    const matchesDept = selectedDepartment ? prof.department === selectedDepartment : true;
-    return matchesFaculty && matchesDept;
-  });
-
+  // Render
   return (
-    <div style={{
-      minHeight: "100vh",
-      backgroundColor: "#f0fcff",
-      padding: "2rem",
-      fontFamily: "Arial, sans-serif"
-    }}>
+    <div
+      style={{
+        minHeight: "100vh",
+        backgroundColor: "#f0fcff",
+        padding: "2rem",
+        fontFamily: "Arial, sans-serif",
+      }}
+    >
       <h1 style={{ textAlign: "center" }}>Find and Review NUS Professors</h1>
 
       <div style={{ textAlign: "center", margin: "2rem 0" }}>
@@ -124,104 +160,118 @@ export default function Home() {
           type="text"
           placeholder="🔍 Search by name"
           value={query}
-          onChange={handleQueryChange}
+          onChange={e => setQuery(e.target.value)}
           style={{
             width: "80%",
             maxWidth: "600px",
             padding: "0.5rem 1rem",
             borderRadius: "999px",
             border: "1px solid #ccc",
-            fontSize: "1rem"
+            fontSize: "1rem",
           }}
         />
       </div>
 
-      {filterError && <p style={{ color: "red", textAlign: "center" }}>{filterError}</p>}
-      <div style={{
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        gap: "1rem",
-        margin: "1rem 0",
-        flexWrap: "wrap"
-      }}>
-        <select
-          value={selectedFaculty}
-          onChange={handleFacultyChange}
+      <div style={{ textAlign: "center", marginBottom: "1rem" }}>
+        <button
+          onClick={() => setShowFilters(f => !f)}
           style={{
-            padding: "0.5rem",
+            padding: "0.5rem 1rem",
             borderRadius: "5px",
-            border: "1px solid #ccc",
-            minWidth: "150px"
+            border: "1px solid #0077cc",
+            backgroundColor: showFilters ? "#0077cc" : "#fff",
+            color: showFilters ? "#fff" : "#0077cc",
+            cursor: "pointer",
           }}
         >
-          <option value="">All Faculties</option>
-          {facultiesData.map((f) => (
-            <option key={f.faculty_name} value={f.faculty_name}>
-              {f.faculty_name}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={selectedDepartment}
-          onChange={handleDepartmentChange}
-          disabled={!selectedFaculty || departmentsForSelectedFaculty.length === 0}
-          style={{
-            padding: "0.5rem",
-            borderRadius: "5px",
-            border: "1px solid #ccc",
-            minWidth: "150px"
-          }}
-        >
-          <option value="">All Departments</option>
-          {departmentsForSelectedFaculty.map((dept) => (
-            <option key={dept} value={dept}>
-              {dept}
-            </option>
-          ))}
-        </select>
+          {showFilters ? "Hide Filters" : "Show Filters"}
+        </button>
       </div>
 
-      <div style={{ maxWidth: "700px", margin: "2rem auto 0 auto" }}>
-        {loading && <p style={{ textAlign: "center" }}>Loading…</p>}
-        {error && <p style={{ color: "red", textAlign: "center" }}>Error: {error}</p>}
+      {showFilters && (
+        <div style={{ maxWidth: "700px", margin: "0 auto 2rem" }}>
+          {filterError && (
+            <p style={{ color: "red", textAlign: "center" }}>
+              {filterError}
+            </p>
+          )}
+          {facultiesData.map(fac => {
+            const selFac = selectedFaculties.includes(fac.faculty_name);
+            return (
+              <div key={fac.faculty_name} style={{ marginBottom: "0.75rem" }}>
+                <label style={{ display: "flex", gap: "0.5rem" }}>
+                  <input
+                    type="checkbox"
+                    checked={selFac}
+                    onChange={() => toggleFaculty(fac.faculty_name)}
+                  />
+                  {fac.faculty_name}
+                </label>
+                {selFac && fac.departments_list.length > 0 && (
+                  <div style={{ marginLeft: "1.5rem", marginTop: "0.25rem" }}>
+                    {fac.departments_list.map(d => {
+                      const selDept = selectedDepts.includes(d);
+                      return (
+                        <label
+                          key={d}
+                          style={{ display: "flex", gap: "0.5rem" }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selDept}
+                            onChange={() => toggleDept(d)}
+                          />
+                          {d}
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
-        {filteredResults.length > 0 ? (
-          <>
-            <ul style={{ listStyle: "none", padding: 0 }}>
-              {filteredResults.map((prof) => (
-                <li key={prof.prof_id} style={{ padding: "1rem 0", borderBottom: "1px solid #eee" }}>
-                  <h3 style={{ margin: "0 0 0.25rem 0" }}>
-                    <Link to={`/professor/${prof.prof_id}`} style={{ color: "#0077cc", textDecoration: "none" }}>
-                      {prof.name}
-                    </Link>
-                  </h3>
-                  <p style={{ margin: "0.25rem 0", fontSize: "0.9rem" }}>
-                    <strong>Faculty:</strong> {prof.faculty}<br />
-                    <strong>Dept:</strong> {prof.department}<br />
-                    <strong>Rating:</strong> {prof.average_rating}
-                  </p>
-                </li>
-              ))}
-            </ul>
+      {loadingAll && (
+        <p style={{ textAlign: "center" }}>Loading all professors…</p>
+      )}
+      {errorAll && (
+        <p style={{ color: "red", textAlign: "center" }}>{errorAll}</p>
+      )}
 
-            <div style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              margin: "1.5rem 0"
-            }}>
-              <button onClick={() => setPage((n) => Math.max(1, n - 1))} disabled={page === 1 || loading}>← Prev</button>
-              <span>Page {page}</span>
-              <button onClick={() => hasNext && setPage((n) => n + 1)} disabled={!hasNext || loading}>Next →</button>
-            </div>
-          </>
-        ) : (
-          !loading &&
-          (query.trim() || selectedFaculty || selectedDepartment) && (
-            <p style={{ textAlign: "center" }}>No professors found for your criteria.</p>
-          )
+      <div style={{ maxWidth: "700px", margin: "0 auto" }}>
+        {displayedProfs.length === 0 && !loadingAll && !errorAll && (
+          <p style={{ textAlign: "center" }}>
+            No professors found matching your criteria.
+          </p>
+        )}
+        {displayedProfs.length > 0 && (
+          <ul style={{ listStyle: "none", padding: 0 }}>
+            {displayedProfs.map(p => (
+              <li
+                key={p.prof_id}
+                style={{ padding: "1rem 0", borderBottom: "1px solid #eee" }}
+              >
+                <h3 style={{ margin: 0 }}>
+                  <Link
+                    to={`/professor/${p.prof_id}`}
+                    style={{ color: "#0077cc", textDecoration: "none" }}
+                  >
+                    {p.name}
+                  </Link>
+                </h3>
+                <p style={{ margin: "0.25rem 0", fontSize: "0.9rem" }}>
+                  <strong>Faculty:</strong> {p.faculty}
+                  <br />
+                  <strong>Dept:</strong> {p.department || "—"}
+                  <br />
+                  <strong>Rating:</strong>{" "}
+                  {p.average_rating != null ? p.average_rating : "—"}
+                </p>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
     </div>

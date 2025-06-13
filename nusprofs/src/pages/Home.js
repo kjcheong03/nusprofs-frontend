@@ -24,7 +24,7 @@ export default function Home() {
   // Fetch all faculties + departments 
   useEffect(() => {
     setFilterError(null);
-    fetch("https://nusprofs-api.onrender.com/faculties/", {
+    fetch("https://nusprofs-api.onrender.com/faculties", {
       headers: { Accept: "application/json" },
     })
       .then(res => {
@@ -59,7 +59,7 @@ export default function Home() {
         const all = [];
         while (true) {
           const res = await fetch(
-            `https://nusprofs-api.onrender.com/search/?page=${page}`,
+            `https://nusprofs-api.onrender.com/search?page=${page}`,
             { headers: { Accept: "application/json" } }
           );
           if (!res.ok) throw new Error(`Page ${page} failed`);

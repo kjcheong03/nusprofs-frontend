@@ -45,7 +45,7 @@ export default function Register() {
   const errStyle = { color:'#b00', textAlign:'center', margin:'0.5rem 0' };
 
   return (
-    <div className="home">
+    <div style={{ minHeight: '100vh', background: '#f0fcff', padding: '2rem' }}>
       <div style={card}>
         <h2 style={{ textAlign:'center', marginBottom:'1.5rem' }}>
           Register an Account

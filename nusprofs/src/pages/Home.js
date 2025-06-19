@@ -2,26 +2,21 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 
 export default function Home() {
-  // All professors state
   const [allProfs, setAllProfs]             = useState([]);
   const [displayedProfs, setDisplayedProfs] = useState([]);
   const [loadingAll, setLoadingAll]         = useState(false);
   const [errorAll, setErrorAll]             = useState(null);
 
-  // Search‐by‐name state 
   const [query, setQuery]                   = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
 
-  // Faculty / department filter state
   const [facultiesData, setFacultiesData]         = useState([]);
   const [selectedFaculties, setSelectedFaculties] = useState([]);
   const [selectedDepts, setSelectedDepts]         = useState([]);
   const [filterError, setFilterError]             = useState(null);
 
-  // Show / hide filters
   const [showFilters, setShowFilters] = useState(false);
 
-  // Fetch all faculties + departments 
   useEffect(() => {
     setFilterError(null);
     fetch("https://nusprofs-api.onrender.com/faculties", {
@@ -47,7 +42,6 @@ export default function Home() {
       });
   }, []);
 
-  // Fetch page of /search/ 
   useEffect(() => {
     let cancelled = false;
     setLoadingAll(true);
@@ -85,13 +79,11 @@ export default function Home() {
     return () => { cancelled = true; };
   }, []);
 
-  // Debounce query input
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQuery(query.trim()), 500);
     return () => clearTimeout(t);
   }, [query]);
 
-  // Update displayedProfs when change dependencys
   useEffect(() => {
     if (loadingAll || errorAll) return;
     let filtered = allProfs;
@@ -121,7 +113,6 @@ export default function Home() {
     selectedDepts,
   ]);
 
-  // Toggle handlers
   const toggleFaculty = name => {
     setSelectedFaculties(prev => {
       const has = prev.includes(name);
@@ -143,7 +134,6 @@ export default function Home() {
     );
   };
 
-  // Render
   return (
     <div
       style={{
@@ -267,7 +257,7 @@ export default function Home() {
                   <strong>Dept:</strong> {p.department || "—"}
                   <br />
                   <strong>Rating:</strong>{" "}
-                  {p.average_rating != null ? p.average_rating : "—"}
+                  {p.average_rating ? p.average_rating.toFixed(2) : "No reviews yet"}
                 </p>
               </li>
             ))}

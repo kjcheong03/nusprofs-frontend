@@ -7,13 +7,11 @@ body {
   font-family: 'Inter', sans-serif;
 }
 
-/* Page layout */
 .container {
   margin: 0;
   text-align: center;
 }
 
-/* Navbar */
 .nav {
   background-color: #EAFBFF;
   color: black;
@@ -54,7 +52,6 @@ body {
   background-color: #777;
 }
 
-/* Home screen layout */
 .home {
   background-color: #EAFBFF;
   min-height: calc(100vh - 60px);
@@ -66,13 +63,11 @@ body {
   text-align: center;
 }
 
-/* Home title */
 .home__title {
   font-size: 2.5rem;
   margin-bottom: 1.5rem;
 }
 
-/* Search section */
 .home__search {
   width: 100%;
   max-width: 600px;
@@ -88,7 +83,6 @@ body {
   outline: none;
 }
 
-/* Call-to-action text */
 .home__cta {
   font-size: 1.25rem;
   color: #333;

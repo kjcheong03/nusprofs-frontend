@@ -1,12 +1,15 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { loginUser } from '../services/auth';
+import React, { useState, useContext } from 'react';
+import { useNavigate }              from 'react-router-dom';
+import { loginUser }                from '../services/auth';
+import { AuthContext }              from '../context/AuthContext';
 
 export default function Login() {
   const nav = useNavigate();
-  const [user, setUser]     = useState('');
-  const [pass, setPass]     = useState('');
-  const [error, setError]   = useState('');
+  const { refreshUser } = useContext(AuthContext);
+
+  const [user, setUser]       = useState('');
+  const [pass, setPass]       = useState('');
+  const [error, setError]     = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async e => {
@@ -15,7 +18,8 @@ export default function Login() {
     setLoading(true);
     try {
       await loginUser(user, pass);
-      nav('/');
+      await refreshUser();      
+      nav('/');                 
     } catch (err) {
       setError(err.message);
       setLoading(false);
@@ -23,21 +27,26 @@ export default function Login() {
   };
 
   const card = {
-    maxWidth:'400px', margin:'0 auto', padding:'2rem',
-    background:'#fff', borderRadius:'8px', boxShadow:'0 2px 8px rgba(0,0,0,0.1)'
+    maxWidth: '400px', margin: '0 auto', padding: '2rem',
+    background: '#fff', borderRadius: '8px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
   };
-  const input={ width:'100%', padding:'0.5rem', marginTop:'0.25rem',
-    border:'1px solid #ccc', borderRadius:'4px', fontSize:'1rem' };
-  const label={ display:'block', marginBottom:'1rem' };
-  const button={ width:'100%', padding:'0.75rem', marginTop:'1rem',
-    border:'none', borderRadius:'4px', background:'#0070f3',
-    color:'#fff', fontSize:'1rem', opacity:loading?0.6:1,
-    cursor:loading?'not-allowed':'pointer'
+  const input = {
+    width: '100%', padding: '0.5rem', marginTop: '0.25rem',
+    border: '1px solid #ccc', borderRadius: '4px', fontSize: '1rem'
   };
-  const errStyle={ color:'#b00', textAlign:'center', margin:'0.5rem 0' };
+  const label = { display: 'block', marginBottom: '1rem' };
+  const button = {
+    width: '100%', padding: '0.75rem', marginTop: '1rem',
+    border: 'none', borderRadius: '4px', background: '#0070f3',
+    color: '#fff', fontSize: '1rem',
+    opacity: loading ? 0.6 : 1,
+    cursor: loading ? 'not-allowed' : 'pointer'
+  };
+  const errStyle = { color: '#b00', textAlign: 'center', margin: '0.5rem 0' };
 
   return (
-    <div className="home">
+    <div style={{ minHeight: '100vh', background: '#f0fcff', padding: '2rem' }}>
       <div style={card}>
         <h2 style={{ textAlign:'center', marginBottom:'1.5rem' }}>
           Login to NUSProfs

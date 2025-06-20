@@ -2,41 +2,41 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 
 export default function Home() {
-  const [allProfs, setAllProfs]             = useState([]);
+  const [allProfs, setAllProfs] = useState([]);
   const [displayedProfs, setDisplayedProfs] = useState([]);
-  const [loadingAll, setLoadingAll]         = useState(false);
-  const [errorAll, setErrorAll]             = useState(null);
+  const [loadingAll, setLoadingAll] = useState(false);
+  const [errorAll, setErrorAll] = useState(null);
 
-  const [query, setQuery]                   = useState("");
+  const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
 
-  const [facultiesData, setFacultiesData]         = useState([]);
+  const [facultiesData, setFacultiesData] = useState([]);
   const [selectedFaculties, setSelectedFaculties] = useState([]);
-  const [selectedDepts, setSelectedDepts]         = useState([]);
-  const [filterError, setFilterError]             = useState(null);
+  const [selectedDepts, setSelectedDepts] = useState([]);
+  const [filterError, setFilterError] = useState(null);
 
   const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     setFilterError(null);
-    fetch("https://nusprofs-api.onrender.com/faculties", {
+    fetch("https://nusprofs-api.onrender.com/professors/faculties", {
       headers: { Accept: "application/json" },
     })
-      .then(res => {
+      .then((res) => {
         if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
         return res.json();
       })
-      .then(raw => {
+      .then((raw) => {
         if (!Array.isArray(raw)) throw new Error("Invalid faculties data");
-        const formatted = raw.map(f => ({
+        const formatted = raw.map((f) => ({
           faculty_name: f.name,
           departments_list: Array.isArray(f.departments)
-            ? f.departments.map(d => d.name)
+            ? f.departments.map((d) => d.name)
             : [],
         }));
         setFacultiesData(formatted);
       })
-      .catch(err => {
+      .catch((err) => {
         console.error(err);
         setFilterError("Could not load filter options.");
       });
@@ -53,7 +53,7 @@ export default function Home() {
         const all = [];
         while (true) {
           const res = await fetch(
-            `https://nusprofs-api.onrender.com/search?page=${page}`,
+            `https://nusprofs-api.onrender.com/professors/search?page=${page}`,
             { headers: { Accept: "application/json" } }
           );
           if (!res.ok) throw new Error(`Page ${page} failed`);
@@ -76,7 +76,9 @@ export default function Home() {
       }
     })();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -90,17 +92,13 @@ export default function Home() {
 
     if (debouncedQuery) {
       const q = debouncedQuery.toLowerCase();
-      filtered = filtered.filter(p => p.name.toLowerCase().includes(q));
+      filtered = filtered.filter((p) => p.name.toLowerCase().includes(q));
     }
     if (selectedFaculties.length) {
-      filtered = filtered.filter(p =>
-        selectedFaculties.includes(p.faculty)
-      );
+      filtered = filtered.filter((p) => selectedFaculties.includes(p.faculty));
     }
     if (selectedDepts.length) {
-      filtered = filtered.filter(p =>
-        selectedDepts.includes(p.department)
-      );
+      filtered = filtered.filter((p) => selectedDepts.includes(p.department));
     }
 
     setDisplayedProfs(filtered);
@@ -113,24 +111,24 @@ export default function Home() {
     selectedDepts,
   ]);
 
-  const toggleFaculty = name => {
-    setSelectedFaculties(prev => {
+  const toggleFaculty = (name) => {
+    setSelectedFaculties((prev) => {
       const has = prev.includes(name);
-      const next = has ? prev.filter(f => f !== name) : [...prev, name];
+      const next = has ? prev.filter((f) => f !== name) : [...prev, name];
       if (has) {
-        const fac = facultiesData.find(f => f.faculty_name === name);
+        const fac = facultiesData.find((f) => f.faculty_name === name);
         if (fac) {
-          setSelectedDepts(d =>
-            d.filter(dep => !fac.departments_list.includes(dep))
+          setSelectedDepts((d) =>
+            d.filter((dep) => !fac.departments_list.includes(dep))
           );
         }
       }
       return next;
     });
   };
-  const toggleDept = name => {
-    setSelectedDepts(prev =>
-      prev.includes(name) ? prev.filter(d => d !== name) : [...prev, name]
+  const toggleDept = (name) => {
+    setSelectedDepts((prev) =>
+      prev.includes(name) ? prev.filter((d) => d !== name) : [...prev, name]
     );
   };
 
@@ -150,7 +148,7 @@ export default function Home() {
           type="text"
           placeholder="🔍 Search by name"
           value={query}
-          onChange={e => setQuery(e.target.value)}
+          onChange={(e) => setQuery(e.target.value)}
           style={{
             width: "80%",
             maxWidth: "600px",
@@ -164,7 +162,7 @@ export default function Home() {
 
       <div style={{ textAlign: "center", marginBottom: "1rem" }}>
         <button
-          onClick={() => setShowFilters(f => !f)}
+          onClick={() => setShowFilters((f) => !f)}
           style={{
             padding: "0.5rem 1rem",
             borderRadius: "5px",
@@ -181,11 +179,9 @@ export default function Home() {
       {showFilters && (
         <div style={{ maxWidth: "700px", margin: "0 auto 2rem" }}>
           {filterError && (
-            <p style={{ color: "red", textAlign: "center" }}>
-              {filterError}
-            </p>
+            <p style={{ color: "red", textAlign: "center" }}>{filterError}</p>
           )}
-          {facultiesData.map(fac => {
+          {facultiesData.map((fac) => {
             const selFac = selectedFaculties.includes(fac.faculty_name);
             return (
               <div key={fac.faculty_name} style={{ marginBottom: "0.75rem" }}>
@@ -199,7 +195,7 @@ export default function Home() {
                 </label>
                 {selFac && fac.departments_list.length > 0 && (
                   <div style={{ marginLeft: "1.5rem", marginTop: "0.25rem" }}>
-                    {fac.departments_list.map(d => {
+                    {fac.departments_list.map((d) => {
                       const selDept = selectedDepts.includes(d);
                       return (
                         <label
@@ -238,7 +234,7 @@ export default function Home() {
         )}
         {displayedProfs.length > 0 && (
           <ul style={{ listStyle: "none", padding: 0 }}>
-            {displayedProfs.map(p => (
+            {displayedProfs.map((p) => (
               <li
                 key={p.prof_id}
                 style={{ padding: "1rem 0", borderBottom: "1px solid #eee" }}
@@ -257,7 +253,9 @@ export default function Home() {
                   <strong>Dept:</strong> {p.department || "—"}
                   <br />
                   <strong>Rating:</strong>{" "}
-                  {p.average_rating ? p.average_rating.toFixed(2) : "No reviews yet"}
+                  {p.average_rating
+                    ? p.average_rating.toFixed(2)
+                    : "No reviews yet"}
                 </p>
               </li>
             ))}

@@ -9,11 +9,11 @@ export default function Navbar() {
     <nav
       style={{
         display: 'flex',
-        alignItems: 'center',          
+        alignItems: 'center',
         justifyContent: 'space-between',
-        height: '60px',                  
+        height: '60px',
         padding: '0 2rem',
-        backgroundColor: '#f0fcff',     
+        backgroundColor: '#f0fcff',
       }}
     >
       <Link
@@ -40,9 +40,6 @@ export default function Navbar() {
       >
         <CustomLink to="/pricing">Placeholder 1</CustomLink>
         <CustomLink to="/about">Placeholder 2</CustomLink>
-        {isLoggedIn && (
-          <CustomLink to="/profile">My Profile</CustomLink>
-        )}
       </ul>
 
       <div
@@ -54,9 +51,18 @@ export default function Navbar() {
       >
         {!loading && (isLoggedIn ? (
           <>
-            <span style={{ fontSize: '1rem', lineHeight: '1' }}>
+            <Link
+              to="/profile"
+              style={{
+                fontSize: '1rem',
+                lineHeight: '1',
+                textDecoration: 'none',
+                color: '#0077cc',
+                fontWeight: '600',
+              }}
+            >
               Welcome, {user.username}
-            </span>
+            </Link>
             <button
               onClick={logout}
               style={{

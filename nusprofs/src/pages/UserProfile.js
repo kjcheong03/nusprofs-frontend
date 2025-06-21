@@ -2,7 +2,7 @@ import React, { useContext, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { API_URL, changeUsername } from "../services/auth";
-import { getUserReviews, editReview, deleteReview } from "../services/reviews";
+import { getUserReviews, deleteReview } from "../services/reviews";
 
 export default function UserProfile() {
   const { user, loading, logout, refreshUser } = useContext(AuthContext);
@@ -16,12 +16,6 @@ export default function UserProfile() {
   const [error, setError] = useState("");
 
   const [reviews, setReviews] = useState([]);
-
-  const [editingId, setEditingId] = useState(null);
-  const [editModule, setEditModule] = useState("");
-  const [editRating, setEditRating] = useState(5);
-  const [editText, setEditText] = useState("");
-  const [editError, setEditError] = useState("");
 
   useEffect(() => {
     if (!user) return;
@@ -100,35 +94,12 @@ export default function UserProfile() {
     }
   };
 
-  const startEdit = (r) => {
-    setEditingId(r.id);
-    setEditModule(r.module_code);
-    setEditRating(r.rating);
-    setEditText(r.text);
-    setEditError("");
-  };
-  const handleEdit = async (r) => {
-    if (!editModule) return setEditError("Module code required");
-    if (!editText) return setEditError("Text required");
-    setEditError("");
-    try {
-      await editReview(r.id, {
-        module_code: editModule,
-        text: editText,
-        rating: editRating,
-      });
-      setEditingId(null);
-      setReviews(await getUserReviews());
-    } catch (e) {
-      setEditError(e.message);
-    }
-  };
-
   const handleDelete = async (r) => {
     if (!window.confirm("Delete this review?")) return;
     try {
       await deleteReview(r.id);
-      setReviews(await getUserReviews());
+      const rv = await getUserReviews();
+      setReviews(rv);
     } catch (e) {
       alert(e.message);
     }
@@ -171,10 +142,7 @@ export default function UserProfile() {
                 placeholder="New username"
                 style={{ padding: ".5rem", fontSize: "1rem" }}
               />
-              <button
-                onClick={handleUsernameChange}
-                style={{ marginLeft: ".5rem" }}
-              >
+              <button onClick={handleUsernameChange} style={{ marginLeft: ".5rem" }}>
                 Save
               </button>
               <button
@@ -266,64 +234,24 @@ export default function UserProfile() {
                 padding: "1rem 0",
               }}
             >
-              {editingId === r.id ? (
-                <>
-                  <input
-                    value={editModule}
-                    onChange={(e) => setEditModule(e.target.value)}
-                    style={{ width: "100%", marginBottom: ".25rem" }}
-                  />
-                  <input
-                    type="number"
-                    min={1}
-                    max={5}
-                    step={0.5}
-                    value={editRating}
-                    onChange={(e) => setEditRating(Number(e.target.value))}
-                    style={{ width: "100%", marginBottom: ".25rem" }}
-                  />
-                  <textarea
-                    value={editText}
-                    onChange={(e) => setEditText(e.target.value)}
-                    style={{ width: "100%", height: "80px" }}
-                  />
-                  {editError && <div style={{ color: "red" }}>{editError}</div>}
-                  <button
-                    onClick={() => handleEdit(r)}
-                    style={{ marginRight: ".5rem" }}
-                  >
-                    Save
-                  </button>
-                  <button onClick={() => setEditingId(null)}>Cancel</button>
-                </>
-              ) : (
-                <>
-                  <Link
-                    to={`/professor/${r.prof_id}`}
-                    style={{
-                      color: "#0077cc",
-                      textDecoration: "none",
-                      fontWeight: "bold",
-                    }}
-                  >
-                    {r.prof_name || `Professor ${r.prof_id}`}
-                  </Link>
-                  <p>
-                    <b>Module:</b> {r.module_code} — {r.module_name}
-                  </p>
-                  <p>
-                    <b>Rating:</b> {r.rating}
-                  </p>
-                  <p>{r.text}</p>
-                  <button
-                    onClick={() => startEdit(r)}
-                    style={{ marginRight: ".5rem" }}
-                  >
-                    Edit
-                  </button>
-                  <button onClick={() => handleDelete(r)}>Delete</button>
-                </>
-              )}
+              <Link
+                to={`/professor/${r.prof_id}`}
+                style={{
+                  color: "#0077cc",
+                  textDecoration: "none",
+                  fontWeight: "bold",
+                }}
+              >
+                {r.prof_name || `Professor ${r.prof_id}`}
+              </Link>
+              <p>
+                <b>Module:</b> {r.module_code} — {r.module_name}
+              </p>
+              <p>
+                <b>Rating:</b> {r.rating}
+              </p>
+              <p>{r.text}</p>
+              <button onClick={() => handleDelete(r)}>Delete</button>
             </div>
           ))
         )}

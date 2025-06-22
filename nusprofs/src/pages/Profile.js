@@ -1,9 +1,7 @@
-import React, { useState, useEffect, useContext, useCallback } from 'react';
+import React, { useState, useEffect, useContext, useCallback, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import {
-  getReviewsForProfessor,
-  getReplies,
   createReview,
   editReview,
   deleteReview,
@@ -30,6 +28,18 @@ import {
 } from 'react-icons/fa';
 
 const API_URL = 'https://nusprofs-api.onrender.com';
+
+async function fetchAllPages(url) {
+  let all = [];
+  while (url) {
+    const res = await fetch(url, { headers:{ Accept:'application/json' } });
+    if (!res.ok) throw new Error(res.statusText);
+    const { results, next } = await res.json();
+    all = all.concat(results);
+    url = next;
+  }
+  return all;
+}
 
 const IconBtn = ({ children, onClick, title, style, type = "button", ...props }) => (
   <button
@@ -61,13 +71,13 @@ function StarRating({ value, onChange }) {
           key={i}
           onClick={onChange ? () => onChange(i) : undefined}
           style={{
-            cursor:    onChange ? 'pointer' : 'default',
-            fontSize:  '1.2rem',
-            color:     '#ffb400',
+            cursor:     onChange ? 'pointer' : 'default',
+            fontSize:   '1.2rem',
+            color:      '#ffb400',
             marginRight:'4px'
           }}
         >
-          {value >= i ? <FaStar /> : <FaRegStar />}
+          {value >= i ? <FaStar/> : <FaRegStar/>}
         </span>
       ))}
     </div>
@@ -77,26 +87,20 @@ function StarRating({ value, onChange }) {
 function StarDisplay({ value }) {
   const stars = [];
   for (let i = 1; i <= 5; i++) {
-    if (value >= i)            stars.push(<FaStar key={i} />);
-    else if (value >= i - 0.5) stars.push(<FaStarHalfAlt key={i} />);
-    else                       stars.push(<FaRegStar key={i} />);
+    if (value >= i)            stars.push(<FaStar key={i}/>);
+    else if (value >= i - 0.5) stars.push(<FaStarHalfAlt key={i}/>);
+    else                       stars.push(<FaRegStar key={i}/>);
   }
   return (
-    <span
-      style={{
-        color:         '#ffb400',
-        fontSize:      '1.2rem',
-        verticalAlign: 'middle'
-      }}
-    >
+    <span style={{ color:'#ffb400', fontSize:'1.2rem', verticalAlign:'middle' }}>
       {stars}
     </span>
   );
 }
 
 export default function Profile() {
-  const { id } = useParams();
-  const nav    = useNavigate();
+  const { id }    = useParams();
+  const nav       = useNavigate();
   const { isLoggedIn, user } = useContext(AuthContext);
 
   const [prof, setProf]               = useState(null);
@@ -123,7 +127,7 @@ export default function Profile() {
   const [showReplyForm, setShowReplyForm] = useState({});
 
   function parseMentions(text) {
-    return text.split(/(@[A-Za-z0-9_]+)/g).map((part,i) =>
+    return text.split(/(@[A-Za-z0-9_]+)/g).map((part, i) =>
       part.startsWith('@')
         ? <Link
             key={i}
@@ -134,25 +138,45 @@ export default function Profile() {
     );
   }
 
+  const teachingByModule = useMemo(() => {
+    if (!prof?.teaching) return [];
+    const map = new Map();
+    prof.teaching.forEach(t => {
+      if (!map.has(t.module_code)) {
+        map.set(t.module_code, {
+          module_code: t.module_code,
+          module_name: t.module_name,
+          offerings:   []
+        });
+      }
+      map.get(t.module_code).offerings.push(
+        `Semester ${t.semester}${t.academic_year ? ` (${t.academic_year})` : ''}`
+      );
+    });
+    return Array.from(map.values());
+  }, [prof?.teaching]);
+
   useEffect(() => {
     setLoadingProf(true);
     fetch(`${API_URL}/professor/${id}`, { headers:{Accept:'application/json'} })
       .then(r => r.ok ? r.json() : Promise.reject(r.statusText))
       .then(setProf)
-      .catch(e=>setErrorProf(e.toString()))
-      .finally(()=>setLoadingProf(false));
+      .catch(e => setErrorProf(e.toString()))
+      .finally(() => setLoadingProf(false));
   }, [id]);
 
   const reload = useCallback(async () => {
     setLoading(true);
     try {
-      const rv = await getReviewsForProfessor(id);
+      const rv = await fetchAllPages(`${API_URL}/reviews/professors/${id}`);
       const withReplies = await Promise.all(
-        rv.map(async r => ({ ...r, replies: await getReplies(r.id) }))
+        rv.map(async r => ({
+          ...r,
+          can_edit:  isLoggedIn && user.username === r.username,
+          replies:   await fetchAllPages(`${API_URL}/reviews/${r.id}/replies`)
+        }))
       );
       setReviews(withReplies);
-
-      // 👉 use "professors" here, not "professor"
       const sumRes = await fetch(
         `${API_URL}/professors/${id}/review_summary`,
         { headers:{Accept:'application/json'} }
@@ -160,16 +184,15 @@ export default function Profile() {
       if (!sumRes.ok) throw new Error(sumRes.statusText);
       const { average_rating, review_count } = await sumRes.json();
       setProf(p => ({ ...p, average_rating, review_count }));
-
       setError('');
     } catch(e) {
       setError(e.message);
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, isLoggedIn, user.username]);
 
-  useEffect(() => { reload() }, [reload]);
+  useEffect(() => { reload(); }, [reload]);
 
   const handleCreate = async e => {
     e.preventDefault();
@@ -177,10 +200,17 @@ export default function Profile() {
     if (!newText)   return setFormError('Review text required');
     setFormError('');
     try {
-      await createReview({ prof_id:id, module_code:newModule, text:newText, rating:newRating });
+      await createReview({
+        prof_id:     id,
+        module_code: newModule,
+        text:        newText,
+        rating:      newRating
+      });
       setNewModule(''); setNewRating(5); setNewText('');
       await reload();
-    } catch(e){ setFormError(e.message) }
+    } catch(e) {
+      setFormError(e.message);
+    }
   };
 
   const startEditReview = r => {
@@ -196,10 +226,16 @@ export default function Profile() {
     if (!editText)   return setEditError('Text required');
     setEditError('');
     try {
-      await editReview(r.id, { module_code:editModule, text:editText, rating:editRating });
+      await editReview(r.id, {
+        module_code: editModule,
+        text:        editText,
+        rating:      editRating
+      });
       setEditingId(null);
       await reload();
-    } catch(e){ setEditError(e.message) }
+    } catch(e) {
+      setEditError(e.message);
+    }
   };
 
   const handleDelete = async r => {
@@ -209,16 +245,17 @@ export default function Profile() {
   };
 
   const handleLike = async r => {
-    if (!isLoggedIn) {
-      nav('/login');
-      return;
-    }
+    if (!isLoggedIn) { nav('/login'); return; }
     await likeReview(r.id);
     setReviews(rs => rs.map(x =>
       x.id === r.id
-        ? { ...x,
-            is_liked: !x.is_liked,
-            likes_count: x.is_liked ? x.likes_count-1 : x.likes_count+1 }
+        ? {
+            ...x,
+            is_liked:    !x.is_liked,
+            likes_count: x.is_liked
+                         ? x.likes_count - 1
+                         : x.likes_count + 1
+          }
         : x
     ));
   };
@@ -241,14 +278,14 @@ export default function Profile() {
 
   const handleReplyText = (rid, txt) => {
     initReply(rid);
-    setReplyState(s => ({ ...s, [rid]: { ...s[rid], newText: txt } }));
+    setReplyState(s => ({
+      ...s,
+      [rid]: { ...s[rid], newText: txt }
+    }));
   };
 
   const submitReply = async rid => {
-    if (!isLoggedIn) {
-      nav('/login');
-      return;
-    }
+    if (!isLoggedIn) { nav('/login'); return; }
     const rs = replyState[rid] || {};
     if (!rs.newText) {
       return setReplyState(s => ({
@@ -258,7 +295,9 @@ export default function Profile() {
     }
     try {
       await createReply(rid, rs.newText, rs.replyToId);
-      const updated = await getReplies(rid);
+      const updated = await fetchAllPages(
+        `${API_URL}/reviews/${rid}/replies`
+      );
       setReviews(prev => prev.map(x =>
         x.id === rid ? { ...x, replies: updated } : x
       ));
@@ -290,10 +329,7 @@ export default function Profile() {
   };
 
   const handleReplyEdit = async (rid, rep) => {
-    if (!isLoggedIn) {
-      nav('/login');
-      return;
-    }
+    if (!isLoggedIn) { nav('/login'); return; }
     const rs = replyState[rid] || {};
     if (!rs.editText) {
       return setReplyState(s => ({
@@ -303,7 +339,9 @@ export default function Profile() {
     }
     try {
       await editReply(rep.id, { text: rs.editText });
-      const updated = await getReplies(rid);
+      const updated = await fetchAllPages(
+        `${API_URL}/reviews/${rid}/replies`
+      );
       setReviews(prev => prev.map(x =>
         x.id === rid ? { ...x, replies: updated } : x
       ));
@@ -325,23 +363,19 @@ export default function Profile() {
   };
 
   const handleReplyDelete = async (rid, repId) => {
-    if (!isLoggedIn) {
-      nav('/login');
-      return;
-    }
+    if (!isLoggedIn) { nav('/login'); return; }
     if (!window.confirm('Delete this reply?')) return;
     await deleteReply(repId);
-    const updated = await getReplies(rid);
+    const updated = await fetchAllPages(
+      `${API_URL}/reviews/${rid}/replies`
+    );
     setReviews(prev => prev.map(x =>
       x.id === rid ? { ...x, replies: updated } : x
     ));
   };
 
   const handleReplyLike = async (rid, repId) => {
-    if (!isLoggedIn) {
-      nav('/login');
-      return;
-    }
+    if (!isLoggedIn) { nav('/login'); return; }
     await likeReply(repId);
     setReviews(prev => prev.map(x => {
       if (x.id !== rid) return x;
@@ -349,9 +383,13 @@ export default function Profile() {
         ...x,
         replies: x.replies.map(rp =>
           rp.id === repId
-            ? { ...rp,
-                is_liked: !rp.is_liked,
-                likes_count: rp.is_liked ? rp.likes_count-1 : rp.likes_count+1 }
+            ? {
+                ...rp,
+                is_liked:    !rp.is_liked,
+                likes_count: rp.is_liked
+                             ? rp.likes_count - 1
+                             : rp.likes_count + 1
+              }
             : rp
         )
       };
@@ -374,7 +412,6 @@ export default function Profile() {
         newError:  ''
       }
     }));
-    // 👉 scroll the reply form into view
     setTimeout(() => {
       const el = document.getElementById(`reply-form-${rid}`);
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -429,6 +466,36 @@ export default function Profile() {
           </p>
         )}
 
+        {teachingByModule.length > 0 && (
+          <>
+            <p style={{
+              fontSize:   '1rem',
+              fontWeight: 'bold',
+              margin:     '1.5rem 0 0.5rem'
+            }}>
+              Teaching History
+            </p>
+            {teachingByModule.map(m => (
+              <div key={m.module_code} style={{
+                marginBottom:'1rem',
+                fontSize:    '1rem'
+              }}>
+                <p style={{ margin: 0 }}>
+                  {m.module_code} — {m.module_name}
+                </p>
+                <ul style={{
+                  margin:    '0.25rem 0 0 1.25rem',
+                  padding:   0
+                }}>
+                  {m.offerings.map((sem,i) => (
+                    <li key={i}>{sem}</li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </>
+        )}
+
         <hr style={{ margin:'2rem 0' }}/>
 
         <button onClick={() => setShowForm(f => !f)}>
@@ -452,12 +519,7 @@ export default function Profile() {
                 placeholder="Your review…"
                 value={newText}
                 onChange={e => setNewText(e.target.value)}
-                style={{
-                  width:'100%',
-                  padding:'.5rem',
-                  height:'80px',
-                  marginTop:'.5rem'
-                }}
+                style={{ width:'100%', padding:'.5rem', height:'80px', marginTop:'.5rem' }}
               />
               {formError && <div style={{ color:'red' }}>{formError}</div>}
               <IconBtn type="submit" title="Submit review">
@@ -465,9 +527,7 @@ export default function Profile() {
               </IconBtn>
             </form>
           ) : (
-            <p>
-              <Link to="/login">Log in</Link> to write a review.
-            </p>
+            <p><Link to="/login">Log in</Link> to write a review.</p>
           )
         )}
 
@@ -485,13 +545,8 @@ export default function Profile() {
                 ? (user.username === r.username
                     ? '/profile'
                     : `/users/${encodeURIComponent(r.username)}`)
-                : '/login'
-              }
-              style={{
-                color:'#0077cc',
-                fontWeight:'bold',
-                textDecoration:'none'
-              }}
+                : '/login'}
+              style={{ color:'#0077cc', fontWeight:'bold', textDecoration:'none' }}
             >
               {r.username}
             </Link>
@@ -510,20 +565,11 @@ export default function Profile() {
                 <textarea
                   value={editText}
                   onChange={e => setEditText(e.target.value)}
-                  style={{
-                    width:'100%',
-                    padding:'.5rem',
-                    height:'80px',
-                    margin:'.5rem 0'
-                  }}
+                  style={{ width:'100%', padding:'.5rem', height:'80px', margin:'.5rem 0' }}
                 />
                 {editError && <div style={{ color:'red' }}>{editError}</div>}
-                <IconBtn onClick={() => handleEdit(r)} title="Save">
-                  <FaCheck/>
-                </IconBtn>
-                <IconBtn onClick={() => setEditingId(null)} title="Cancel">
-                  <FaTimes/>
-                </IconBtn>
+                <IconBtn onClick={() => handleEdit(r)} title="Save"><FaCheck/></IconBtn>
+                <IconBtn onClick={() => setEditingId(null)} title="Cancel"><FaTimes/></IconBtn>
               </>
             ) : (
               <>
@@ -540,13 +586,11 @@ export default function Profile() {
                     style={{ color:r.is_liked?'red':'inherit', width:'3rem' }}
                   >
                     {r.is_liked ? <FaHeart/> : <FaRegHeart/>}
-                    <span style={{
-                      marginLeft:'6px',
-                      fontSize:'1rem'
-                    }}>
+                    <span style={{ marginLeft:'6px', fontSize:'1rem' }}>
                       {r.likes_count}
                     </span>
                   </IconBtn>
+
                   {r.can_edit && (
                     <>
                       <IconBtn onClick={() => startEditReview(r)} title="Edit">
@@ -564,13 +608,9 @@ export default function Profile() {
             <div style={{ marginTop:'.5rem' }}>
               <button
                 onClick={() => setShowReplyForm(f => ({ ...f, [r.id]: !f[r.id] }))}
-                style={{
-                  display:'inline-flex',
-                  alignItems:'center',
-                  marginRight:'8px'
-                }}
+                style={{ display:'inline-flex', alignItems:'center', marginRight:'8px' }}
               >
-                {showReplyForm[r.id] ? <FaTimes/> : <FaReply />}
+                {showReplyForm[r.id] ? <FaTimes/> : <FaReply/>}
                 <span style={{ marginLeft:'4px' }}>
                   {showReplyForm[r.id] ? 'Cancel' : 'Reply'}
                 </span>
@@ -590,10 +630,7 @@ export default function Profile() {
 
             {showReplyForm[r.id] && (
               isLoggedIn ? (
-                <div
-                  id={`reply-form-${r.id}`}
-                  style={{ margin:'8px 0 0 24px' }}
-                >
+                <div id={`reply-form-${r.id}`} style={{ margin:'8px 0 0 24px' }}>
                   <textarea
                     placeholder="Write a reply…"
                     value={replyState[r.id]?.newText||''}
@@ -639,12 +676,7 @@ export default function Profile() {
                       </IconBtn>
                       <IconBtn onClick={() => setReplyState(s => ({
                         ...s,
-                        [r.id]: {
-                          ...s[r.id],
-                          editingReplyId: null,
-                          editText:       '',
-                          editError:      ''
-                        }
+                        [r.id]: { ...s[r.id], editingReplyId:null, editText:'', editError:'' }
                       }))} title="Cancel">
                         <FaTimes/>
                       </IconBtn>
@@ -656,45 +688,32 @@ export default function Profile() {
                           ? (user.username === rep.username
                               ? '/profile'
                               : `/users/${encodeURIComponent(rep.username)}`)
-                          : '/login'
-                        }
-                        style={{
-                          color:'#0077cc',
-                          fontWeight:'bold',
-                          textDecoration:'none'
-                        }}
+                          : '/login'}
+                        style={{ color:'#0077cc', fontWeight:'bold', textDecoration:'none' }}
                       >
                         {rep.username}
                       </Link>
-                      <p style={{ margin:'4px 0' }}>
-                        {parseMentions(rep.text)}
-                      </p>
+                      <p style={{ margin:'4px 0' }}>{parseMentions(rep.text)}</p>
                       <small style={{ color:'#555' }}>
                         {new Date(rep.timestamp).toLocaleString()}
                       </small>
                       <div style={{ marginTop:'4px' }}>
                         <IconBtn
-                          onClick={() => handleReplyLike(r.id, rep.id)}
-                          title={rep.is_liked ? 'Unlike' : 'Like'}
-                          style={{ color:rep.is_liked?'red':'inherit', width:'3rem' }}
-                        >
+                          onClick={() => handleReplyLike(r.id, rep.id)}>
                           {rep.is_liked ? <FaHeart/> : <FaRegHeart/>}
-                          <span style={{
-                            marginLeft:'6px',
-                            fontSize:'1rem'
-                          }}>
+                          <span style={{ marginLeft:'6px', fontSize:'1rem' }}>
                             {rep.likes_count}
                           </span>
                         </IconBtn>
-                        <IconBtn onClick={() => startNestedReply(r.id, rep)} title="Reply">
+                        <IconBtn onClick={() => startNestedReply(r.id, rep)}>
                           <FaReply/>
                         </IconBtn>
                         {rep.can_edit && (
                           <>
-                            <IconBtn onClick={() => startReplyEdit(r.id, rep)} title="Edit">
+                            <IconBtn onClick={() => startReplyEdit(r.id, rep)}>
                               <FaEdit/>
                             </IconBtn>
-                            <IconBtn onClick={() => handleReplyDelete(r.id, rep.id)} title="Delete">
+                            <IconBtn onClick={() => handleReplyDelete(r.id, rep.id)}>
                               <FaTrashAlt/>
                             </IconBtn>
                           </>

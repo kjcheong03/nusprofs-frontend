@@ -172,7 +172,7 @@ export default function Profile() {
       const withReplies = await Promise.all(
         rv.map(async r => ({
           ...r,
-          can_edit:  isLoggedIn && user.username === r.username,
+          can_edit:  isLoggedIn && user?.username === r.username,
           replies:   await fetchAllPages(`${API_URL}/reviews/${r.id}/replies`)
         }))
       );
@@ -190,7 +190,7 @@ export default function Profile() {
     } finally {
       setLoading(false);
     }
-  }, [id, isLoggedIn, user.username]);
+  }, [id, isLoggedIn, user?.username]);
 
   useEffect(() => { reload(); }, [reload]);
 
@@ -542,7 +542,7 @@ export default function Profile() {
           <div key={r.id} style={{ borderBottom:'1px solid #ddd', padding:'1rem 0' }}>
             <Link
               to={isLoggedIn
-                ? (user.username === r.username
+                ? (user?.username === r.username
                     ? '/profile'
                     : `/users/${encodeURIComponent(r.username)}`)
                 : '/login'}
@@ -685,7 +685,7 @@ export default function Profile() {
                     <div key={rep.id} style={{ borderLeft:'2px solid #eee', padding:'8px' }}>
                       <Link
                         to={isLoggedIn
-                          ? (user.username === rep.username
+                          ? (user?.username === rep.username
                               ? '/profile'
                               : `/users/${encodeURIComponent(rep.username)}`)
                           : '/login'}

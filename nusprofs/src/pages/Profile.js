@@ -336,20 +336,30 @@ export default function Profile() {
     }
     try {
       const created = await createReply(rid, rs.newText, rs.replyToId);
-      setReviews(prev => prev.map(x =>
-        x.id === rid
-          ? {
-              ...x,
-              replies: [ ...x.replies, { ...created, can_edit: true } ],
-              reply_count: x.reply_count + 1 
-            }
-          : x
-      ));
-      setReplyState(s => ({
-        ...s,
-        [rid]: { ...s[rid], newText:'', replyToId:null, newError:'' }
+
+      const data = await fetchPaginated(
+      `${API_URL}/reviews/${rid}/replies`,
+      1
+      );
+      const existing = data.results.map(rep => ({
+      ...rep,
+      can_edit: isLoggedIn && user?.username === rep.username,
+      is_liked: rep.liked === true
       }));
-      setShowReplyForm(f => ({ ...f, [rid]: false }));
+
+      setReviews(prev => prev.map(r =>
+      r.id === rid
+      ? {
+        ...r,
+        replies: [ ...existing, { ...created, can_edit: true, is_liked: false } ],
+        reply_count: r.reply_count + 1
+      }
+    : r
+    ));
+
+    setShowReplies(f => ({ ...f, [rid]: true }));
+    setShowReplyForm(f => ({ ...f, [rid]: false }));
+
       setShowReplies(f => ({ ...f, [rid]: true }));
     } catch(err) {
       setReplyState(s => ({

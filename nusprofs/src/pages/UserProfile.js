@@ -1,8 +1,30 @@
-import React, { useContext, useState, useEffect } from "react";
+import React, { useContext, useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { API_URL, changeUsername } from "../services/auth";
-import { getUserReviews, deleteReview } from "../services/reviews";
+import { deleteReview } from "../services/reviews";
+import {
+  FaStar,
+  FaStarHalfAlt,
+  FaRegStar
+} from "react-icons/fa";
+
+function buildHeaders() {
+  return {
+    Accept: "application/json",
+    Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+  };
+}
+
+function StarDisplay({ value }) {
+  const stars = [];
+  for (let i = 1; i <= 5; i++) {
+    if (value >= i) stars.push(<FaStar key={i} />);
+    else if (value >= i - 0.5) stars.push(<FaStarHalfAlt key={i} />);
+    else stars.push(<FaRegStar key={i} />);
+  }
+  return <span style={{ color: "#ffb400", fontSize: "1.2rem" }}>{stars}</span>;
+}
 
 export default function UserProfile() {
   const { user, loading, logout, refreshUser } = useContext(AuthContext);
@@ -16,37 +38,62 @@ export default function UserProfile() {
   const [error, setError] = useState("");
 
   const [reviews, setReviews] = useState([]);
+  const [nextUrl, setNextUrl] = useState(null);
+  const [loadingReviews, setLoadingReviews] = useState(false);
+  const [reviewsError, setReviewsError] = useState("");
+
+  const loadReviewsPage = useCallback(
+    async (url, replace = false) => {
+      setLoadingReviews(true);
+      setReviewsError("");
+      try {
+        const res = await fetch(url, { headers: buildHeaders() });
+        if (!res.ok) throw new Error(res.statusText);
+        const { results, next } = await res.json();
+
+        const withNames = await Promise.all(
+          results.map(async (r) => {
+            const profRes = await fetch(`${API_URL}/professor/${r.prof_id}`, {
+              headers: { Accept: "application/json" },
+            });
+            if (!profRes.ok) throw new Error("Failed to fetch prof");
+            const profData = await profRes.json();
+            return { ...r, prof_name: profData.name };
+          })
+        );
+
+        setReviews((prev) =>
+          replace ? withNames : prev.concat(withNames)
+        );
+        setNextUrl(next);
+      } catch (e) {
+        setReviewsError(e.message);
+      } finally {
+        setLoadingReviews(false);
+      }
+    },
+    []
+  );
 
   useEffect(() => {
     if (!user) return;
+    loadReviewsPage(`${API_URL}/reviews/users/`, true);
+  }, [user, loadReviewsPage]);
 
-    async function loadMyReviews() {
-      try {
-        const rv = await getUserReviews();
-        const withNames = await Promise.all(
-          rv.map(async (r) => {
-            const res = await fetch(`${API_URL}/professors/${r.prof_id}`, {
-              headers: { Accept: "application/json" },
-            });
-            if (!res.ok) throw new Error("Failed to fetch prof");
-            const prof = await res.json();
-            return { ...r, prof_name: prof.name };
-          })
-        );
-        setReviews(withNames);
-      } catch (e) {
-        console.error(e);
-      }
+  const handleDelete = async (r) => {
+    if (!window.confirm("Delete this review?")) return;
+    try {
+      await deleteReview(r.id);
+      setReviews((prev) => prev.filter((x) => x.id !== r.id));
+    } catch (e) {
+      alert(e.message);
     }
-
-    loadMyReviews();
-  }, [user]);
+  };
 
   const handleUsernameChange = async () => {
     setError("");
-    if (newUsername.length < 3) {
+    if (newUsername.length < 3)
       return setError("Username must be at least 3 characters.");
-    }
     try {
       await changeUsername(newUsername);
       await refreshUser();
@@ -58,16 +105,11 @@ export default function UserProfile() {
 
   const handlePasswordChange = async () => {
     setError("");
-    if (!oldPassword) {
-      return setError("Please enter your current password.");
-    }
-    if (newPassword.length < 8) {
+    if (!oldPassword) return setError("Please enter your current password.");
+    if (newPassword.length < 8)
       return setError("New password must be at least 8 characters.");
-    }
-    if (newPassword !== confirmPassword) {
+    if (newPassword !== confirmPassword)
       return setError("New passwords do not match.");
-    }
-
     try {
       const res = await fetch(`${API_URL}/auth/change_password`, {
         method: "PUT",
@@ -83,7 +125,6 @@ export default function UserProfile() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.detail || JSON.stringify(data));
-
       setEditingPassword(false);
       setOldPassword("");
       setNewPassword("");
@@ -91,17 +132,6 @@ export default function UserProfile() {
       alert("Password changed successfully.");
     } catch (e) {
       setError(e.message);
-    }
-  };
-
-  const handleDelete = async (r) => {
-    if (!window.confirm("Delete this review?")) return;
-    try {
-      await deleteReview(r.id);
-      const rv = await getUserReviews();
-      setReviews(rv);
-    } catch (e) {
-      alert(e.message);
     }
   };
 
@@ -142,7 +172,10 @@ export default function UserProfile() {
                 placeholder="New username"
                 style={{ padding: ".5rem", fontSize: "1rem" }}
               />
-              <button onClick={handleUsernameChange} style={{ marginLeft: ".5rem" }}>
+              <button
+                onClick={handleUsernameChange}
+                style={{ marginLeft: ".5rem" }}
+              >
                 Save
               </button>
               <button
@@ -223,37 +256,59 @@ export default function UserProfile() {
         <button onClick={logout}>Logout</button>
 
         <h2 style={{ marginTop: "2rem" }}>Your Reviews</h2>
-        {reviews.length === 0 ? (
-          <p>You haven't written any reviews yet.</p>
-        ) : (
-          reviews.map((r) => (
-            <div
-              key={r.id}
+
+        {reviewsError && <p style={{ color: "red" }}>{reviewsError}</p>}
+
+        {!loadingReviews && reviews.length === 0 && !reviewsError && (
+          <p>You haven’t written any reviews yet.</p>
+        )}
+
+        {reviews.map((r) => (
+          <div
+            key={r.id}
+            style={{
+              borderBottom: "1px solid #ddd",
+              padding: "1rem 0",
+            }}
+          >
+            <Link
+              to={`/professor/${r.prof_id}`}
               style={{
-                borderBottom: "1px solid #ddd",
-                padding: "1rem 0",
+                color: "#0077cc",
+                textDecoration: "none",
+                fontWeight: "bold",
               }}
             >
-              <Link
-                to={`/professor/${r.prof_id}`}
-                style={{
-                  color: "#0077cc",
-                  textDecoration: "none",
-                  fontWeight: "bold",
-                }}
-              >
-                {r.prof_name || `Professor ${r.prof_id}`}
-              </Link>
-              <p>
-                <b>Module:</b> {r.module_code} — {r.module_name}
-              </p>
-              <p>
-                <b>Rating:</b> {r.rating}
-              </p>
-              <p>{r.text}</p>
-              <button onClick={() => handleDelete(r)}>Delete</button>
-            </div>
-          ))
+              {r.prof_name}
+            </Link>
+            <p>
+              <b>Module:</b> {r.module_code} — {r.module_name}
+            </p>
+            <p>
+              <b>Rating:</b> <StarDisplay value={r.rating} />
+            </p>
+            <p>{r.text}</p>
+            <button onClick={() => handleDelete(r)}>Delete</button>
+          </div>
+        ))}
+
+        {nextUrl && (
+          <div style={{ textAlign: "center", marginTop: "1rem" }}>
+            <button
+              onClick={() => loadReviewsPage(nextUrl)}
+              disabled={loadingReviews}
+              style={{
+                padding: "0.5rem 1rem",
+                borderRadius: 4,
+                border: "1px solid #0077cc",
+                backgroundColor: "#0077cc",
+                color: "#fff",
+                cursor: loadingReviews ? "default" : "pointer",
+              }}
+            >
+              {loadingReviews ? "Loading…" : "Show More"}
+            </button>
+          </div>
         )}
       </div>
     </div>

@@ -195,7 +195,7 @@ export default function Profile() {
           ...r,
           can_edit: isLoggedIn && user?.username === r.username,
           replies: [],
-          is_liked: r.liked === true,
+          is_liked: r.is_liked === true,
         }));
         setReviews(initialReviews);
         setHasMoreReviews(!!data.next);
@@ -344,7 +344,7 @@ export default function Profile() {
       const existing = data.results.map(rep => ({
       ...rep,
       can_edit: isLoggedIn && user?.username === rep.username,
-      is_liked: rep.liked === true
+      is_liked: rep.is_liked === true
       }));
 
       setReviews(prev => prev.map(r =>
@@ -459,7 +459,7 @@ export default function Profile() {
           setRepliesPagination(p => ({ ...p, [reviewId]: { page: 1, hasMore: false, loading: true } }));
           try {
               const data = await fetchPaginated(`${API_URL}/reviews/${reviewId}/replies`, 1);
-              const fetchedReplies = data.results.map(rep => ({ ...rep, can_edit: isLoggedIn && user?.username === rep.username, is_liked: rep.liked === true, }));
+              const fetchedReplies = data.results.map(rep => ({ ...rep, can_edit: isLoggedIn && user?.username === rep.username, is_liked: rep.is_liked === true, }));
               setReviews(rs => rs.map(r => r.id === reviewId ? { ...r, replies: fetchedReplies } : r));
               setRepliesPagination(p => ({ ...p, [reviewId]: { page: 1, hasMore: !!data.next, loading: false } }));
           } catch (error) {
@@ -497,7 +497,8 @@ export default function Profile() {
               const newReviews = data.results.map(r => ({
                   ...r,
                   can_edit: isLoggedIn && user?.username === r.username, 
-                  replies: []
+                  replies: [],
+                  is_liked: r.is_liked === true
               }));
               setReviews(prev => [...prev, ...newReviews]);
               setHasMoreReviews(!!data.next);
@@ -516,7 +517,7 @@ export default function Profile() {
 
       try {
           const data = await fetchPaginated(`${API_URL}/reviews/${reviewId}/replies`, nextPage);
-          const newReplies = data.results.map(rep => ({ ...rep, can_edit: isLoggedIn && user?.username === rep.username, is_liked: rep.liked === true, }));
+          const newReplies = data.results.map(rep => ({ ...rep, can_edit: isLoggedIn && user?.username === rep.username, is_liked: rep.is_liked === true, }));
           setReviews(rs => rs.map(r => r.id === reviewId ? { ...r, replies: [...r.replies, ...newReplies] } : r));
           setRepliesPagination(p => ({ ...p, [reviewId]: { page: nextPage, hasMore: !!data.next, loading: false } }));
       } catch (error) {

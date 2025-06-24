@@ -204,6 +204,8 @@ export default function Profile() {
       .finally(() => setLoadingReviews(false));
   }, [id, isLoggedIn, user?.username]);
 
+  
+
   const reloadSummary = () =>
     fetch(`${API_URL}/professors/${id}/review_summary`, { headers:{Accept:'application/json'} })
       .then(r => r.ok ? r.json() : Promise.reject(r.statusText))
@@ -325,49 +327,53 @@ export default function Profile() {
     }));
   };
 
-  const submitReply = async rid => {
-    if (!isLoggedIn) { nav('/login'); return; }
-    const rs = replyState[rid] || {};
-    if (!rs.newText) {
-      return setReplyState(s => ({
-        ...s,
-        [rid]: { ...s[rid], newError: 'Reply cannot be empty' }
-      }));
-    }
-    try {
-      const created = await createReply(rid, rs.newText, rs.replyToId);
+const submitReply = async rid => {
+  if (!isLoggedIn) {
+    nav('/login');
+    return;
+  }
 
-      const data = await fetchPaginated(
-      `${API_URL}/reviews/${rid}/replies`,
-      1
-      );
-      const existing = data.results.map(rep => ({
-      ...rep,
-      can_edit: isLoggedIn && user?.username === rep.username,
-      is_liked: rep.is_liked === true
-      }));
+  const rs = replyState[rid] || {};
+  if (!rs.newText) {
+    setReplyState(s => ({
+      ...s,
+      [rid]: { ...s[rid], newError: 'Reply cannot be empty' }
+    }));
+    return;
+  }
 
-      setReviews(prev => prev.map(r =>
-      r.id === rid
-      ? {
-        ...r,
-        replies: [ ...existing, { ...created, can_edit: true, is_liked: false } ],
-        reply_count: r.reply_count + 1
-      }
-    : r
-    ));
+  try {
+    const created = await createReply(rid, rs.newText, rs.replyToId);
 
-    setShowReplies(f => ({ ...f, [rid]: true }));
-    setShowReplyForm(f => ({ ...f, [rid]: false }));
+    setReviews(prev =>
+      prev.map(r =>
+        r.id === rid
+          ? ({
+              ...r,
+              replies: [
+                {
+                  ...created,
+                  can_edit: isLoggedIn && user?.username === created.username,
+                  is_liked: false
+                },
+                ...r.replies.filter(rep => rep.id !== created.id)
+              ],
+              reply_count: r.reply_count + 1
+            })
+          : r
+      )
+    );
 
-      setShowReplies(f => ({ ...f, [rid]: true }));
-    } catch(err) {
-      setReplyState(s => ({
-        ...s,
-        [rid]: { ...s[rid], newError: err.message }
-      }));
-    }
-  };
+    setShowReplies(s => ({ ...s, [rid]: true }));
+    setShowReplyForm(s => ({ ...s, [rid]: false }));
+  } catch (err) {
+    setReplyState(s => ({
+      ...s,
+      [rid]: { ...s[rid], newError: err.message }
+    }));
+  }
+};
+
 
   const startReplyEdit = (rid, rep) => {
     initReply(rid);
@@ -469,7 +475,6 @@ export default function Profile() {
       }
   }, [reviews, showReplies, isLoggedIn, user?.username]);
 
-
   const startNestedReply = (rid, rep) => {
     initReply(rid);
     setShowReplyForm(f => ({ ...f, [rid]: true }));
@@ -518,7 +523,16 @@ export default function Profile() {
       try {
           const data = await fetchPaginated(`${API_URL}/reviews/${reviewId}/replies`, nextPage);
           const newReplies = data.results.map(rep => ({ ...rep, can_edit: isLoggedIn && user?.username === rep.username, is_liked: rep.is_liked === true, }));
-          setReviews(rs => rs.map(r => r.id === reviewId ? { ...r, replies: [...r.replies, ...newReplies] } : r));
+          setReviews(rs =>
+  rs.map(r => {
+    if (r.id !== reviewId) return r;
+    const unique = newReplies.filter(
+      nr => !r.replies.some(existing => existing.id === nr.id)
+    );
+    return { ...r, replies: [...r.replies, ...unique] };
+  })
+);
+
           setRepliesPagination(p => ({ ...p, [reviewId]: { page: nextPage, hasMore: !!data.next, loading: false } }));
       } catch (error) {
           console.error("Failed to load more replies:", error);

@@ -32,8 +32,10 @@ import {
 } from "react-icons/fa";
 import buildHeaders from "../components/buildHeaders";
 
-import { GoHeartFill as Heart, GoHeartFill as HeartOutline } from 'react-icons/go';
-
+import {
+  GoHeartFill as Heart,
+  GoHeartFill as HeartOutline,
+} from "react-icons/go";
 
 const API_URL = "https://nusprofs-api.onrender.com";
 const PAGE_SIZE = 20;
@@ -707,7 +709,13 @@ export default function Profile() {
             {teachingByModule.map((m) => (
               <div key={m.module_code} style={{ marginBottom: "1rem" }}>
                 <p style={{ margin: 0 }}>
-                  {m.module_code} — {m.module_name}
+                  <a
+                    href={`https://nusmods.com/courses/${m.module_code}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {m.module_code} — {m.module_name}
+                  </a>
                 </p>
                 <ul style={{ margin: "0.25rem 0 0 1.25rem", padding: 0 }}>
                   {m.offerings.map((sem, i) => (
@@ -873,20 +881,22 @@ export default function Profile() {
                             {r.likes_count}{" "}
                           </span>
                         </IconBtn>
-                        
+
                         {r.can_edit && (
-                          <div style = {{display: "flex", alignItems: "center"}}>
+                          <div
+                            style={{ display: "flex", alignItems: "center" }}
+                          >
                             <IconBtn
                               onClick={() => startEditReview(r)}
                               title="Edit"
-                              style = {{marginLeft: "-6px"}}
+                              style={{ marginLeft: "-6px" }}
                             >
                               <FaEdit />
                             </IconBtn>
                             <IconBtn
                               onClick={() => handleDelete(r)}
                               title="Delete"
-                              style = {{marginLeft: "0px"}}
+                              style={{ marginLeft: "0px" }}
                             >
                               <FaTrashAlt />
                             </IconBtn>
@@ -1090,12 +1100,17 @@ export default function Profile() {
                                   </IconBtn>
                                   <IconBtn
                                     onClick={() => startNestedReply(r.id, rep)}
-                                    style={{ marginLeft: "-10px" }} 
+                                    style={{ marginLeft: "-10px" }}
                                   >
                                     <FaReply />
                                   </IconBtn>
                                   {rep.can_edit && (
-                                    <div style={{ display: "flex", alignItems: "center" }}>
+                                    <div
+                                      style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                      }}
+                                    >
                                       <IconBtn
                                         onClick={() =>
                                           startReplyEdit(r.id, rep)

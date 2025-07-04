@@ -709,13 +709,7 @@ export default function Profile() {
             {teachingByModule.map((m) => (
               <div key={m.module_code} style={{ marginBottom: "1rem" }}>
                 <p style={{ margin: 0 }}>
-                  <a
-                    href={`https://nusmods.com/courses/${m.module_code}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {m.module_code} — {m.module_name}
-                  </a>
+                  {m.module_code} — {m.module_name}
                 </p>
                 <ul style={{ margin: "0.25rem 0 0 1.25rem", padding: 0 }}>
                   {m.offerings.map((sem, i) => (

@@ -38,8 +38,8 @@ export default function Navbar() {
           padding: 0,
         }}
       >
-        <CustomLink to="/pricing">Placeholder 1</CustomLink>
-        <CustomLink to="/about">Placeholder 2</CustomLink>
+        <CustomLink to="/top-professors">Top Professors</CustomLink>
+        <CustomLink to="/compare-professors">Compare Professors</CustomLink>
       </ul>
 
       <div

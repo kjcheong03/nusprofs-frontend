@@ -47,7 +47,7 @@ export default function OtherUserProfile() {
       const withNames = await Promise.all(
         results.map(async (r) => {
           const profRes = await fetch(
-            `${API_URL}/professor/${r.prof_id}`,
+            `${API_URL}/professors/${r.prof_id}`,
             { headers: { Accept: "application/json" } }
           );
           if (!profRes.ok) throw new Error("Failed to fetch professor");
@@ -103,7 +103,7 @@ export default function OtherUserProfile() {
           ? <p>{username} has not written any reviews yet.</p>
           : reviews.map(r => (
             <div key={r.id} style={{ borderBottom: "1px solid #ddd", padding: "1rem 0" }}>
-              <Link to={`/professor/${r.prof_id}`} style={profLinkStyle}>
+              <Link to={`/professors/${r.prof_id}`} style={profLinkStyle}>
                 {r.prof_name}
               </Link>
               <p style={{ margin: "0.5rem 0" }}>

@@ -19,80 +19,61 @@ function ModuleDropdown({ modules, value, onChange }) {
   const ref = useRef(null);
 
   useEffect(() => {
-    const handler = e => {
+    function handler(e) {
       if (ref.current && !ref.current.contains(e.target)) {
         setOpen(false);
       }
-    };
+    }
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const selectedModule = modules.find(m => m.module_code === value);
+  const sel = modules.find(m => m.module_code === value);
 
   return (
-    <div
-      ref={ref}
-      style={{
-        position:    "relative",
-        width:       "100%",
-        marginBottom: "2rem"
-      }}
-    >
-      <label htmlFor="mod-dd" style={{ display: "block", marginBottom: "0.5rem" }}>
-        Select module:
-      </label>
+    <div ref={ref} style={{ position: "relative", marginBottom: "1rem" }}>
+      <label style={{ display: "block", marginBottom: "0.5rem" }}>Module:</label>
       <div
-        id="mod-dd"
         onClick={() => setOpen(o => !o)}
         style={{
-          width:         "100%",
-          padding:       "0.5rem",
-          border:        "1px solid #ccc",
-          borderRadius:  4,
-          cursor:        "pointer",
-          whiteSpace:    "nowrap",
-          overflow:      "hidden",
-          textOverflow:  "ellipsis",
-          background:    "#fff"
+          padding: "0.5rem",
+          border: "1px solid #ccc",
+          borderRadius: 4,
+          cursor: "pointer",
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          background: "#fff"
         }}
       >
-        {selectedModule
-          ? `${selectedModule.module_code} — ${selectedModule.name}`
-          : "—"}
+        {sel ? `${sel.module_code} — ${sel.name}` : "—"}
       </div>
-
       {open && (
-        <ul
-          style={{
-            position:      "absolute",
-            top:           "100%",
-            left:          0,
-            width:         "100%",
-            maxHeight:     400,
-            margin:        0,
-            padding:       0,
-            listStyle:     "none",
-            border:        "1px solid #ccc",
-            borderRadius:  4,
-            background:    "#fff",
-            overflowY:     "auto",
-            zIndex:        1000
-          }}
-        >
+        <ul style={{
+          position: "absolute",
+          top: "100%",
+          left: 0,
+          width: "100%",
+          maxHeight: 200,
+          margin: 0,
+          padding: 0,
+          listStyle: "none",
+          border: "1px solid #ccc",
+          borderRadius: 4,
+          background: "#fff",
+          overflowY: "auto",
+          zIndex: 1000
+        }}>
           {modules.map(m => (
             <li
               key={m.module_code}
-              onClick={() => {
-                onChange(m.module_code);
-                setOpen(false);
-              }}
+              onClick={() => { onChange(m.module_code); setOpen(false); }}
               style={{
-                padding:       "0.5rem",
-                cursor:        "pointer",
-                whiteSpace:    "nowrap",
-                overflow:      "hidden",
-                textOverflow:  "ellipsis"
+                padding: "0.5rem",
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis"
               }}
               title={`${m.module_code} — ${m.name}`}
             >
@@ -105,46 +86,98 @@ function ModuleDropdown({ modules, value, onChange }) {
   );
 }
 
+function YearDropdown({ options, value, onChange }) {
+  return (
+    <div style={{ marginBottom: "1rem" }}>
+      <label style={{ display: "block", marginBottom: "0.5rem" }}>Year:</label>
+      <select
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        style={{
+          width: "100%",
+          padding: "0.5rem",
+          border: "1px solid #ccc",
+          borderRadius: 4,
+          background: "#fff",
+          cursor: "pointer"
+        }}
+      >
+        {options.map(opt => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 export default function CompareProfessors() {
-  const [modules,     setModules]     = useState([]);
-  const [selected,    setSelected]    = useState("");
-  const [compareData, setCompareData] = useState(null);
-  const [loadingMods, setLoadingMods] = useState(false);
-  const [errorMods,   setErrorMods]   = useState("");
-  const [loadingComp, setLoadingComp] = useState(false);
-  const [errorComp,   setErrorComp]   = useState("");
+  const [modules, setModules] = useState([]);
+  const [allAYs,  setAllAYs]  = useState([]);
+
+  const [selMod,  setSelMod]  = useState("");
+  const [selYear, setSelYear] = useState("");
+
+  const [data,    setData]    = useState(null);
+
+  const [loading, setLoading] = useState({
+    mods: false,
+    yrs:  false,
+    comp: false
+  });
+  const [error,   setError]   = useState({
+    mods: "",
+    yrs:  "",
+    comp: ""
+  });
 
   useEffect(() => {
-    setLoadingMods(true);
-    fetch(`${API_BASE}/professors/modules`, {
-      headers: { Accept: "application/json" }
-    })
-      .then(r => r.ok ? r.json() : Promise.reject(r.statusText))
-      .then(data => {
-        setModules(data);
-        if (data.length) setSelected(data[0].module_code);
+    setLoading(l => ({ ...l, mods: true, yrs: true }));
+    Promise.all([
+      fetch(`${API_BASE}/professors/modules`),
+      fetch(`${API_BASE}/professors/academic-years`)
+    ])
+      .then(async ([rm, ry]) => {
+        if (!rm.ok) throw new Error("mods");
+        if (!ry.ok) throw new Error("yrs");
+        const modules = await rm.json();
+        const yrsJson = await ry.json();
+        setModules(modules);
+        if (modules.length) setSelMod(modules[0].module_code);
+
+        const ayOpts = yrsJson.academic_years.map(x => ({
+          label: x.label,
+          value: String(x.value)
+        }));
+        setAllAYs(ayOpts);
+        if (ayOpts.length) setSelYear(ayOpts[0].value);
       })
-      .catch(() => setErrorMods("Couldn’t load modules."))
-      .finally(() => setLoadingMods(false));
+      .catch(err => {
+        setError(e => ({
+          ...e,
+          [err.message]: `Failed loading ${err.message === "mods" ? "modules" : "years"}.`
+        }));
+      })
+      .finally(() => setLoading(l => ({ ...l, mods: false, yrs: false })));
   }, []);
 
   useEffect(() => {
-    if (!selected) return;
-    setLoadingComp(true);
-    setErrorComp("");
-    fetch(`${API_BASE}/professors/modules/${selected}/compare`, {
-      headers: { Accept: "application/json" }
-    })
-      .then(r => r.ok ? r.json() : Promise.reject(r.statusText))
-      .then(data => setCompareData(data))
-      .catch(() => setErrorComp("Couldn’t load comparison."))
-      .finally(() => setLoadingComp(false));
-  }, [selected]);
+    if (!selMod || !selYear) return;
 
-  const semesters = compareData?.semesters ?? {};
+    setLoading(l => ({ ...l, comp: true }));
+    setError(e => ({ ...e, comp: "" }));
 
-  const headingText = selected
-    ? `${selected} — ${modules.find(m => m.module_code === selected)?.name || ""}`
+    fetch(`${API_BASE}/professors/modules/${selMod}/compare/${selYear}`)
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(json => setData(json))
+      .catch(() => setError(e => ({ ...e, comp: "Couldn’t load comparison." })))
+      .finally(() => setLoading(l => ({ ...l, comp: false })));
+  }, [selMod, selYear]);
+
+  const semGroups = data?.semesters ?? [];
+  const heading   = selMod
+    ? `${selMod} — ${modules.find(m => m.module_code === selMod)?.name || ""}`
     : "";
 
   return (
@@ -159,112 +192,87 @@ export default function CompareProfessors() {
         Compare Professors
       </h1>
 
-      <div style={{ maxWidth: "700px", margin: "0 auto" }}>
-        {loadingMods ? (
-          <p>Loading modules…</p>
-        ) : errorMods ? (
-          <p style={{ color: "red" }}>{errorMods}</p>
-        ) : (
-          <ModuleDropdown
-            modules={modules}
-            value={selected}
-            onChange={setSelected}
-          />
-        )}
+      <div style={{ maxWidth: 700, margin: "0 auto" }}>
+        {loading.mods
+          ? <p>Loading modules…</p>
+          : error.mods
+            ? <p style={{ color: "red" }}>{error.mods}</p>
+            : <ModuleDropdown
+                modules={modules}
+                value={selMod}
+                onChange={setSelMod}
+              />
+        }
 
-        {headingText && (
-          <h2 style={{ textAlign: "center", margin: "1rem 0" }}>
-            {headingText}
+        {loading.yrs
+          ? <p>Loading years…</p>
+          : error.yrs
+            ? <p style={{ color: "red" }}>{error.yrs}</p>
+            : <YearDropdown
+                options={allAYs}
+                value={selYear}
+                onChange={setSelYear}
+              />
+        }
+
+        {heading && (
+          <h2 style={{ textAlign: "center", margin: "1.5rem 0" }}>
+            {heading} ({allAYs.find(y => y.value === selYear)?.label})
           </h2>
         )}
 
-        {loadingComp ? (
-          <p>Loading comparison…</p>
-        ) : errorComp ? (
-          <p style={{ color: "red" }}>{errorComp}</p>
-        ) : (
-          (() => {
-            const entries = Object.entries(semesters);
-            if (entries.length === 0) {
-              return (
-                <p style={{ textAlign: "center", margin: "2rem 0" }}>
-                  No information available.
-                </p>
-              );
-            }
-            return (
-              <div
-                style={{
-                  display:      "flex",
-                  flexWrap:     "wrap",
-                  gap:          "2rem",
-                  marginBottom: "2rem"
-                }}
-              >
-                {entries.map(([semester, profList]) => (
-                  <div
-                    key={semester}
-                    style={{ flex: "1 1 45%", minWidth: 250 }}
-                  >
-                    <h3 style={{ margin: "0.5rem 0" }}>{semester}</h3>
-                    {profList.length === 0 ? (
-                      <p style={{ fontStyle: "italic" }}>
-                        No professors found this semester.
-                      </p>
-                    ) : (
-                      <ul style={{ listStyle: "none", padding: 0 }}>
-                        {profList.map(p => (
-                          <li
-                            key={p.prof_id}
-                            style={{
-                              padding:      "1rem 0",
-                              borderBottom: "1px solid #eee"
-                            }}
-                          >
-                            <h4 style={{ margin: "0 0 0.25rem" }}>
-                              <Link
-                                to={`/professor/${p.prof_id}`}
-                                style={{
-                                  color:          "#0077cc",
-                                  textDecoration: "none"
-                                }}
-                              >
-                                {p.name}
-                              </Link>
-                            </h4>
-                            <p style={{
-                              margin:   "0.25rem 0",
-                              fontSize: "0.9rem"
-                            }}>
-                              <strong>Title:</strong> {p.title || "—"}<br/>
-                              <strong>Faculty:</strong> {p.faculty || "—"}<br/>
-                              <strong>Dept:</strong>    {p.department || "—"}<br/>
-                              <strong>Rating:</strong>{" "}
-                              {p.average_rating != null ? (
-                                <>
-                                  <StarDisplay value={p.average_rating}/>
-                                  <span style={{
-                                    marginLeft:    "0.5rem",
-                                    fontWeight:    "bold",
-                                    verticalAlign: "middle"
-                                  }}>
-                                    {p.average_rating.toFixed(2)}
-                                  </span>
-                                </>
-                              ) : (
-                                "No reviews yet"
-                              )}
-                            </p>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
+        {loading.comp
+          ? <p>Loading comparison…</p>
+          : error.comp
+            ? <p style={{ color: "red" }}>{error.comp}</p>
+            : (() => {
+                const entries = Object.entries(semGroups);
+                if (!entries.length) {
+                  return <p style={{ textAlign: "center", margin: "2rem 0" }}>No data.</p>;
+                }
+                return (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "2rem" }}>
+                    {entries.map(([sem, profs]) => (
+                      <div key={sem} style={{ flex: "1 1 45%", minWidth: 250 }}>
+                        <h3 style={{ margin: "0.5rem 0" }}>{sem}</h3>
+                        {profs.length === 0
+                          ? <p style={{ fontStyle: "italic" }}>No professors.</p>
+                          : <ul style={{ listStyle: "none", padding: 0 }}>
+                              {profs.map(p => (
+                                <li key={p.prof_id} style={{ padding: "1rem 0", borderBottom: "1px solid #eee" }}>
+                                  <h4 style={{ margin: "0 0 .25rem" }}>
+                                    <Link
+                                      to={`/professor/${p.prof_id}`}
+                                      style={{ color: "#0077cc", textDecoration: "none" }}
+                                    >
+                                      {p.name}
+                                    </Link>
+                                  </h4>
+                                  <p style={{ margin: ".25rem 0", fontSize: ".9rem" }}>
+                                    <strong>Title:</strong> {p.title || "—"}<br/>
+                                    <strong>Faculty:</strong> {p.faculty || "—"}<br/>
+                                    <strong>Dept:</strong> {p.department || "—"}<br/>
+                                    <strong>Rating:</strong>{" "}
+                                    {p.average_rating != null
+                                      ? <>
+                                          <StarDisplay value={p.average_rating}/>
+                                          <span style={{ marginLeft: "0.5rem", fontWeight: "bold" }}>
+                                            {p.average_rating.toFixed(2)}
+                                          </span>
+                                        </>
+                                      : "No reviews yet"
+                                    }
+                                  </p>
+                                </li>
+                              ))}
+                            </ul>
+                        }
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            );
-          })()
-        )}
+                );
+              })()
+        }
       </div>
     </div>
   );

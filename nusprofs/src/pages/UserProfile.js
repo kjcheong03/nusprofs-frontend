@@ -53,7 +53,7 @@ export default function UserProfile() {
 
         const withNames = await Promise.all(
           results.map(async (r) => {
-            const profRes = await fetch(`${API_URL}/professor/${r.prof_id}`, {
+            const profRes = await fetch(`${API_URL}/professors/${r.prof_id}`, {
               headers: { Accept: "application/json" },
             });
             if (!profRes.ok) throw new Error("Failed to fetch prof");
@@ -272,7 +272,7 @@ export default function UserProfile() {
             }}
           >
             <Link
-              to={`/professor/${r.prof_id}`}
+              to={`/professors/${r.prof_id}`}
               style={{
                 color: "#0077cc",
                 textDecoration: "none",

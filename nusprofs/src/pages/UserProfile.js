@@ -272,7 +272,7 @@ export default function UserProfile() {
             }}
           >
             <Link
-              to={`/professors/${r.prof_id}`}
+              to={`/professor/${r.prof_id}`}
               style={{
                 color: "#0077cc",
                 textDecoration: "none",

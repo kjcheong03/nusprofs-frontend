@@ -7,6 +7,7 @@ import React, {
 } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
+import NusmodsLink from "../components/NusmodsLink";
 import {
   createReview,
   editReview,
@@ -709,7 +710,10 @@ export default function Profile() {
             {teachingByModule.map((m) => (
               <div key={m.module_code} style={{ marginBottom: "1rem" }}>
                 <p style={{ margin: 0 }}>
-                  {m.module_code} — {m.module_name}
+                  <NusmodsLink
+                  moduleCode={m.module_code}
+                  moduleName={m.module_name}
+                  />
                 </p>
                 <ul style={{ margin: "0.25rem 0 0 1.25rem", padding: 0 }}>
                   {m.offerings.map((sem, i) => (
@@ -792,7 +796,9 @@ export default function Profile() {
                 >
                   <Link
                     to={
-                      isLoggedIn && user?.username === r.username
+                      !isLoggedIn
+                        ? "/login"
+                        : user?.username === r.username
                         ? "/profile"
                         : `/users/${encodeURIComponent(r.username)}`
                     }
@@ -851,7 +857,11 @@ export default function Profile() {
                   ) : (
                     <div>
                       <p>
-                        <b>Module:</b> {r.module_code} — {r.module_name}
+                          <b>Module:</b>{" "}
+                          <NusmodsLink
+                          moduleCode={r.module_code}
+                          moduleName={r.module_name}
+                          />
                       </p>
                       <StarRating value={r.rating} />
                       <p style={{ margin: ".5rem 0" }}>{r.text}</p>

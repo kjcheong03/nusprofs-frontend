@@ -28,6 +28,23 @@ function ModuleDropdown({ modules, value, onChange }) {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  useEffect(() => {
+    if (!open) return;
+    function onKeyDown(e) {
+      const ch = e.key.length === 1 ? e.key.toUpperCase() : "";
+      if (!ch.match(/[A-Z0-9]/)) return;
+      const match = modules.find(m =>
+        m.module_code.toUpperCase().startsWith(ch)
+      );
+      if (match) {
+        const el = document.getElementById(`mod-${match.module_code}`);
+        if (el) el.scrollIntoView({ block: "start" });
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [open, modules]);
+
   const sel = modules.find(m => m.module_code === value);
 
   return (
@@ -40,10 +57,10 @@ function ModuleDropdown({ modules, value, onChange }) {
           border: "1px solid #ccc",
           borderRadius: 4,
           cursor: "pointer",
+          background: "#fff",
           whiteSpace: "nowrap",
           overflow: "hidden",
-          textOverflow: "ellipsis",
-          background: "#fff"
+          textOverflow: "ellipsis"
         }}
       >
         {sel ? `${sel.module_code} — ${sel.name}` : "—"}
@@ -67,7 +84,11 @@ function ModuleDropdown({ modules, value, onChange }) {
           {modules.map(m => (
             <li
               key={m.module_code}
-              onClick={() => { onChange(m.module_code); setOpen(false); }}
+              id={`mod-${m.module_code}`}
+              onClick={() => {
+                onChange(m.module_code);
+                setOpen(false);
+              }}
               style={{
                 padding: "0.5rem",
                 cursor: "pointer",
@@ -141,10 +162,10 @@ export default function CompareProfessors() {
       .then(async ([rm, ry]) => {
         if (!rm.ok) throw new Error("mods");
         if (!ry.ok) throw new Error("yrs");
-        const modules = await rm.json();
-        const yrsJson = await ry.json();
-        setModules(modules);
-        if (modules.length) setSelMod(modules[0].module_code);
+        const modsJson = await rm.json();
+        const yrsJson  = await ry.json();
+        setModules(modsJson);
+        if (modsJson.length) setSelMod(modsJson[0].module_code);
 
         const ayOpts = yrsJson.academic_years.map(x => ({
           label: x.label,
@@ -164,7 +185,6 @@ export default function CompareProfessors() {
 
   useEffect(() => {
     if (!selMod || !selYear) return;
-
     setLoading(l => ({ ...l, comp: true }));
     setError(e => ({ ...e, comp: "" }));
 
@@ -175,8 +195,9 @@ export default function CompareProfessors() {
       .finally(() => setLoading(l => ({ ...l, comp: false })));
   }, [selMod, selYear]);
 
-  const semGroups = data?.semesters ?? [];
-  const heading   = selMod
+  const semGroups = data?.semesters ?? {};
+  const yearLabel = allAYs.find(y => y.value === selYear)?.label || "";
+  const headingText = selMod
     ? `${selMod} — ${modules.find(m => m.module_code === selMod)?.name || ""}`
     : "";
 
@@ -215,9 +236,17 @@ export default function CompareProfessors() {
               />
         }
 
-        {heading && (
+        {headingText && (
           <h2 style={{ textAlign: "center", margin: "1.5rem 0" }}>
-            {heading} ({allAYs.find(y => y.value === selYear)?.label})
+            <a
+              href={`https://nusmods.com/modules/${selMod}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "#0077cc", textDecoration: "none" }}
+            >
+              {headingText}
+            </a>
+            {yearLabel && `  (${yearLabel})`}
           </h2>
         )}
 
@@ -227,7 +256,7 @@ export default function CompareProfessors() {
             ? <p style={{ color: "red" }}>{error.comp}</p>
             : (() => {
                 const entries = Object.entries(semGroups);
-                if (!entries.length) {
+                if (entries.length === 0) {
                   return <p style={{ textAlign: "center", margin: "2rem 0" }}>No data.</p>;
                 }
                 return (
@@ -239,7 +268,13 @@ export default function CompareProfessors() {
                           ? <p style={{ fontStyle: "italic" }}>No professors.</p>
                           : <ul style={{ listStyle: "none", padding: 0 }}>
                               {profs.map(p => (
-                                <li key={p.prof_id} style={{ padding: "1rem 0", borderBottom: "1px solid #eee" }}>
+                                <li
+                                  key={p.prof_id}
+                                  style={{
+                                    padding: "1rem 0",
+                                    borderBottom: "1px solid #eee"
+                                  }}
+                                >
                                   <h4 style={{ margin: "0 0 .25rem" }}>
                                     <Link
                                       to={`/professor/${p.prof_id}`}
@@ -264,7 +299,7 @@ export default function CompareProfessors() {
                                     }
                                   </p>
                                 </li>
-                              ))}
+                              ))}   
                             </ul>
                         }
                       </div>

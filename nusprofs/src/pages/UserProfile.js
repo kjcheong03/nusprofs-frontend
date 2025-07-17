@@ -1,7 +1,7 @@
 import React, { useContext, useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
-import { API_URL, changeUsername } from "../services/auth";
+import { API_URL } from "../services/auth";
 import { deleteReview } from "../services/reviews";
 import {
   FaStar,
@@ -13,6 +13,7 @@ function buildHeaders() {
   return {
     Accept: "application/json",
     Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+    "Content-Type": "application/json",
   };
 }
 
@@ -95,7 +96,16 @@ export default function UserProfile() {
     if (newUsername.length < 3)
       return setError("Username must be at least 3 characters.");
     try {
-      await changeUsername(newUsername);
+      const res = await fetch(`${API_URL}/auth/change_username`, {
+        method: "PUT",
+        headers: buildHeaders(),
+        body: JSON.stringify({ username: newUsername }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (data.username) throw new Error(data.username[0]);
+        throw new Error(data.detail || "Failed to update username.");
+      }
       await refreshUser();
       setEditingUsername(false);
     } catch (e) {
@@ -113,10 +123,7 @@ export default function UserProfile() {
     try {
       const res = await fetch(`${API_URL}/auth/change_password`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-        },
+        headers: buildHeaders(),
         body: JSON.stringify({
           old_password: oldPassword,
           new_password: newPassword,
@@ -124,7 +131,12 @@ export default function UserProfile() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || JSON.stringify(data));
+      if (!res.ok) {
+        if (data.old_password) throw new Error(data.old_password[0]);
+        if (data.new_password) throw new Error(data.new_password[0]);
+        if (data.non_field_errors) throw new Error(data.non_field_errors[0]);
+        throw new Error(data.detail || "Failed to change password.");
+      }
       setEditingPassword(false);
       setOldPassword("");
       setNewPassword("");

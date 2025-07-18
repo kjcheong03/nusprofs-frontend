@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import { API_URL } from "../services/auth";
+import buildHeaders from "../components/buildHeaders";
 import {
   FaStar,
   FaStarHalfAlt,
@@ -29,18 +30,12 @@ export default function OtherUserProfile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  function buildHeaders() {
-    return {
-      Accept: "application/json",
-      Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-    };
-  }
-
   const loadPage = useCallback(async (url, replace = false) => {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(url, { headers: buildHeaders() });
+      const headers = await buildHeaders(true);
+      const res = await fetch(url, { headers });
       if (!res.ok) throw new Error(res.statusText);
       const { results, next } = await res.json();
 
@@ -103,7 +98,7 @@ export default function OtherUserProfile() {
           ? <p>{username} has not written any reviews yet.</p>
           : reviews.map(r => (
             <div key={r.id} style={{ borderBottom: "1px solid #ddd", padding: "1rem 0" }}>
-              <Link to={`/professors/${r.prof_id}`} style={profLinkStyle}>
+              <Link to={`/professor/${r.prof_id}`} style={profLinkStyle}>
                 {r.prof_name}
               </Link>
               <p style={{ margin: "0.5rem 0" }}>

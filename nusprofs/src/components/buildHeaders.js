@@ -5,6 +5,8 @@ export default async function buildHeaders(authRequired = false) {
   const access = localStorage.getItem("access_token");
   const refresh = localStorage.getItem("refresh_token");
 
+  let validAccess = access;
+
   const verifyRes = await fetch(
     "https://nusprofs-api.onrender.com/auth/token/verify",
     {
@@ -13,8 +15,8 @@ export default async function buildHeaders(authRequired = false) {
       body: JSON.stringify({ token: access }),
     }
   );
-  let tokenToUse = access;
-  if (!verifyRes.ok) {
+
+  if (!verifyRes.ok && refresh) {
     const refreshRes = await fetch(
       "https://nusprofs-api.onrender.com/auth/token/refresh",
       {
@@ -23,16 +25,18 @@ export default async function buildHeaders(authRequired = false) {
         body: JSON.stringify({ refresh }),
       }
     );
-    if (!refreshRes.ok) {
+
+    if (refreshRes.ok) {
+      const data = await refreshRes.json();
+      validAccess = data.access;
+      localStorage.setItem("access_token", validAccess);
+    } else {
       localStorage.removeItem("access_token");
       localStorage.removeItem("refresh_token");
       return headers;
     }
-    const { access: newAccess } = await refreshRes.json();
-    localStorage.setItem("access_token", newAccess);
-    tokenToUse = newAccess;
   }
 
-  headers.Authorization = `Bearer ${tokenToUse}`;
+  headers.Authorization = `Bearer ${validAccess}`;
   return headers;
 }

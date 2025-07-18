@@ -1,3 +1,4 @@
+import buildHeaders from '../components/buildHeaders';
 export const API_URL = 'https://nusprofs-api.onrender.com';
 
 async function requestJSON(url, opts = {}) {
@@ -8,12 +9,10 @@ async function requestJSON(url, opts = {}) {
     },
     ...opts,
   });
-
   const ct = res.headers.get('content-type') || '';
   if (!ct.includes('application/json')) {
     throw new Error(`Server returned non-JSON (status ${res.status})`);
   }
-
   const data = await res.json();
   if (!res.ok) {
     throw new Error(data.detail || data.error || `Request failed (status ${res.status})`);
@@ -51,41 +50,32 @@ export async function refreshAccessToken() {
 }
 
 export async function getCurrentUser() {
-  const token = localStorage.getItem('access_token');
-  if (!token) throw new Error('Not authenticated');
+  const headers = await buildHeaders(true);
+  if (!headers.Authorization) throw new Error('Not authenticated');
   return requestJSON(`${API_URL}/auth/whoami`, {
     method: 'GET',
-    headers: { Authorization: `Bearer ${token}` },
+    headers,
   });
 }
 
 export async function logoutUser() {
-  const token   = localStorage.getItem('access_token');
+  const headers = await buildHeaders(true);
   const refresh = localStorage.getItem('refresh_token');
-
   await fetch(`${API_URL}/auth/logout`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
-    },
+    headers: { 'Content-Type': 'application/json', ...headers },
     body: JSON.stringify({ refresh }),
   }).catch(() => {});
-
   localStorage.removeItem('access_token');
   localStorage.removeItem('refresh_token');
 }
 
 export async function changeUsername(username) {
-  const token = localStorage.getItem('access_token');
-  if (!token) throw new Error('Not authenticated');
-
+  const headers = await buildHeaders(true);
+  if (!headers.Authorization) throw new Error('Not authenticated');
   return requestJSON(`${API_URL}/auth/change_username`, {
     method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',    
-      Authorization: `Bearer ${token}`,
-    },
+    headers,
     body: JSON.stringify({ username }),
   });
 }

@@ -3,19 +3,12 @@ import { Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { API_URL } from "../services/auth";
 import { deleteReview } from "../services/reviews";
+import buildHeaders from "../components/buildHeaders";
 import {
   FaStar,
   FaStarHalfAlt,
   FaRegStar
 } from "react-icons/fa";
-
-function buildHeaders() {
-  return {
-    Accept: "application/json",
-    Authorization: `Bearer ${localStorage.getItem("access_token")}`,
-    "Content-Type": "application/json",
-  };
-}
 
 function StarDisplay({ value }) {
   const stars = [];
@@ -48,7 +41,8 @@ export default function UserProfile() {
       setLoadingReviews(true);
       setReviewsError("");
       try {
-        const res = await fetch(url, { headers: buildHeaders() });
+        const headers = await buildHeaders(true);
+        const res = await fetch(url, { headers });
         if (!res.ok) throw new Error(res.statusText);
         const { results, next } = await res.json();
 
@@ -63,9 +57,7 @@ export default function UserProfile() {
           })
         );
 
-        setReviews((prev) =>
-          replace ? withNames : prev.concat(withNames)
-        );
+        setReviews((prev) => replace ? withNames : prev.concat(withNames));
         setNextUrl(next);
       } catch (e) {
         setReviewsError(e.message);
@@ -93,12 +85,12 @@ export default function UserProfile() {
 
   const handleUsernameChange = async () => {
     setError("");
-    if (newUsername.length < 3)
-      return setError("Username must be at least 3 characters.");
+    if (newUsername.length < 3) return setError("Username must be at least 3 characters.");
     try {
+      const headers = await buildHeaders(true);
       const res = await fetch(`${API_URL}/auth/change_username`, {
         method: "PUT",
-        headers: buildHeaders(),
+        headers,
         body: JSON.stringify({ username: newUsername }),
       });
       const data = await res.json();
@@ -116,14 +108,13 @@ export default function UserProfile() {
   const handlePasswordChange = async () => {
     setError("");
     if (!oldPassword) return setError("Please enter your current password.");
-    if (newPassword.length < 8)
-      return setError("New password must be at least 8 characters.");
-    if (newPassword !== confirmPassword)
-      return setError("New passwords do not match.");
+    if (newPassword.length < 8) return setError("New password must be at least 8 characters.");
+    if (newPassword !== confirmPassword) return setError("New passwords do not match.");
     try {
+      const headers = await buildHeaders(true);
       const res = await fetch(`${API_URL}/auth/change_password`, {
         method: "PUT",
-        headers: buildHeaders(),
+        headers,
         body: JSON.stringify({
           old_password: oldPassword,
           new_password: newPassword,
@@ -148,32 +139,17 @@ export default function UserProfile() {
   };
 
   if (loading) return <p>Loading your profile…</p>;
-  if (!user)
-    return (
-      <p>
-        Please <Link to="/login">log in</Link>.
-      </p>
-    );
+  if (!user) return <p>Please <Link to="/login">log in</Link>.</p>;
 
   return (
     <div style={{ minHeight: "100vh", background: "#f0fcff", padding: "2rem" }}>
-      <div
-        style={{
-          maxWidth: "700px",
-          margin: "0 auto",
-          padding: "1.5rem",
-          background: "#fff",
-          borderRadius: "8px",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-        }}
-      >
+      <div style={{
+        maxWidth: "700px", margin: "0 auto", padding: "1.5rem",
+        background: "#fff", borderRadius: "8px", boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
+      }}>
         <h1>Your Profile</h1>
-        <p>
-          <strong>Username:</strong> {user.username}
-        </p>
-        <p>
-          <strong>Email:</strong> {user.email}
-        </p>
+        <p><strong>Username:</strong> {user.username}</p>
+        <p><strong>Email:</strong> {user.email}</p>
 
         <div style={{ marginBottom: "1rem" }}>
           {editingUsername ? (
@@ -184,26 +160,11 @@ export default function UserProfile() {
                 placeholder="New username"
                 style={{ padding: ".5rem", fontSize: "1rem" }}
               />
-              <button
-                onClick={handleUsernameChange}
-                style={{ marginLeft: ".5rem" }}
-              >
-                Save
-              </button>
-              <button
-                onClick={() => setEditingUsername(false)}
-                style={{ marginLeft: ".5rem" }}
-              >
-                Cancel
-              </button>
+              <button onClick={handleUsernameChange} style={{ marginLeft: ".5rem" }}>Save</button>
+              <button onClick={() => setEditingUsername(false)} style={{ marginLeft: ".5rem" }}>Cancel</button>
             </>
           ) : (
-            <button
-              onClick={() => {
-                setNewUsername(user.username);
-                setEditingUsername(true);
-              }}
-            >
+            <button onClick={() => { setNewUsername(user.username); setEditingUsername(true); }}>
               Change Username
             </button>
           )}
@@ -217,49 +178,27 @@ export default function UserProfile() {
                 value={oldPassword}
                 onChange={(e) => setOldPassword(e.target.value)}
                 placeholder="Current password"
-                style={{
-                  display: "block",
-                  marginBottom: ".5rem",
-                  padding: ".5rem",
-                  width: "100%",
-                }}
+                style={{ display: "block", marginBottom: ".5rem", padding: ".5rem", width: "100%" }}
               />
               <input
                 type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder="New password"
-                style={{
-                  display: "block",
-                  marginBottom: ".5rem",
-                  padding: ".5rem",
-                  width: "100%",
-                }}
+                style={{ display: "block", marginBottom: ".5rem", padding: ".5rem", width: "100%" }}
               />
               <input
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Confirm new password"
-                style={{
-                  display: "block",
-                  marginBottom: ".5rem",
-                  padding: ".5rem",
-                  width: "100%",
-                }}
+                style={{ display: "block", marginBottom: ".5rem", padding: ".5rem", width: "100%" }}
               />
               <button onClick={handlePasswordChange}>Save Password</button>
-              <button
-                onClick={() => setEditingPassword(false)}
-                style={{ marginLeft: ".5rem" }}
-              >
-                Cancel
-              </button>
+              <button onClick={() => setEditingPassword(false)} style={{ marginLeft: ".5rem" }}>Cancel</button>
             </>
           ) : (
-            <button onClick={() => setEditingPassword(true)}>
-              Change Password
-            </button>
+            <button onClick={() => setEditingPassword(true)}>Change Password</button>
           )}
         </div>
 
@@ -270,35 +209,17 @@ export default function UserProfile() {
         <h2 style={{ marginTop: "2rem" }}>Your Reviews</h2>
 
         {reviewsError && <p style={{ color: "red" }}>{reviewsError}</p>}
-
         {!loadingReviews && reviews.length === 0 && !reviewsError && (
           <p>You haven’t written any reviews yet.</p>
         )}
 
         {reviews.map((r) => (
-          <div
-            key={r.id}
-            style={{
-              borderBottom: "1px solid #ddd",
-              padding: "1rem 0",
-            }}
-          >
-            <Link
-              to={`/professor/${r.prof_id}`}
-              style={{
-                color: "#0077cc",
-                textDecoration: "none",
-                fontWeight: "bold",
-              }}
-            >
-              {r.prof_name}
-            </Link>
-            <p>
-              <b>Module:</b> {r.module_code} — {r.module_name}
-            </p>
-            <p>
-              <b>Rating:</b> <StarDisplay value={r.rating} />
-            </p>
+          <div key={r.id} style={{ borderBottom: "1px solid #ddd", padding: "1rem 0" }}>
+            <Link to={`/professor/${r.prof_id}`} style={{
+              color: "#0077cc", textDecoration: "none", fontWeight: "bold"
+            }}>{r.prof_name}</Link>
+            <p><b>Module:</b> {r.module_code} — {r.module_name}</p>
+            <p><b>Rating:</b> <StarDisplay value={r.rating} /></p>
             <p>{r.text}</p>
             <button onClick={() => handleDelete(r)}>Delete</button>
           </div>
@@ -310,12 +231,9 @@ export default function UserProfile() {
               onClick={() => loadReviewsPage(nextUrl)}
               disabled={loadingReviews}
               style={{
-                padding: "0.5rem 1rem",
-                borderRadius: 4,
-                border: "1px solid #0077cc",
-                backgroundColor: "#0077cc",
-                color: "#fff",
-                cursor: loadingReviews ? "default" : "pointer",
+                padding: "0.5rem 1rem", borderRadius: 4, border: "1px solid #0077cc",
+                backgroundColor: "#0077cc", color: "#fff",
+                cursor: loadingReviews ? "default" : "pointer"
               }}
             >
               {loadingReviews ? "Loading…" : "Show More"}

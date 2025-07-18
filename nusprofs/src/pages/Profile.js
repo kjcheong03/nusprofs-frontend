@@ -41,11 +41,11 @@ import {
 const API_URL = "https://nusprofs-api.onrender.com";
 const PAGE_SIZE = 20;
 
-async function fetchPaginated(url, page) {
+async function fetchPaginated(url, page, authRequired) {
   const fullUrl = new URL(url);
   fullUrl.searchParams.set("page", page);
   fullUrl.searchParams.set("page_size", PAGE_SIZE);
-  const res = await fetch(fullUrl, { headers: await buildHeaders(true) });
+  const res = await fetch(fullUrl, { headers: await buildHeaders(authRequired) });
   if (!res.ok) throw new Error(res.statusText);
   return res.json();
 }
@@ -211,7 +211,7 @@ export default function Profile() {
 
   useEffect(() => {
     setLoadingReviews(true);
-    fetchPaginated(`${API_URL}/reviews/professors/${id}`, 1)
+    fetchPaginated(`${API_URL}/reviews/professors/${id}`, 1, isLoggedIn)
       .then((data) => {
         const initialReviews = data.results.map((r) => ({
           ...r,
@@ -572,7 +572,7 @@ export default function Profile() {
     if (loadingMoreReviews) return;
     setLoadingMoreReviews(true);
     const nextPage = reviewsPage + 1;
-    fetchPaginated(`${API_URL}/reviews/professors/${id}`, nextPage)
+    fetchPaginated(`${API_URL}/reviews/professors/${id}`, nextPage, isLoggedIn)
       .then((data) => {
         const newReviews = data.results.map((r) => ({
           ...r,

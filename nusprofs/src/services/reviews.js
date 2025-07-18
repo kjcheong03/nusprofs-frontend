@@ -1,14 +1,13 @@
 import { API_URL } from './auth';
+import buildHeaders from '../components/buildHeaders';
 
 async function requestJSON(url, opts = {}, authRequired = false) {
+  const baseHeaders = await buildHeaders(authRequired);
   const headers = {
     'Content-Type': 'application/json',
+    ...baseHeaders,
     ...(opts.headers || {}),
   };
-  if (authRequired) {
-    const token = localStorage.getItem('access_token');
-    if (token) headers.Authorization = `Bearer ${token}`;
-  }
 
   const res = await fetch(url, { ...opts, headers });
   if (res.status === 204) return {};

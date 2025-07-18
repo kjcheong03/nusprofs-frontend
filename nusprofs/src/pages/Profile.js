@@ -45,7 +45,7 @@ async function fetchPaginated(url, page) {
   const fullUrl = new URL(url);
   fullUrl.searchParams.set("page", page);
   fullUrl.searchParams.set("page_size", PAGE_SIZE);
-  const res = await fetch(fullUrl, { headers: buildHeaders() });
+  const res = await fetch(fullUrl, { headers: await buildHeaders(true) });
   if (!res.ok) throw new Error(res.statusText);
   return res.json();
 }

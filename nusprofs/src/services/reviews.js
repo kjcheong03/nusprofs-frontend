@@ -8,7 +8,6 @@ async function requestJSON(url, opts = {}, authRequired = false) {
     ...baseHeaders,
     ...(opts.headers || {}),
   };
-
   const res = await fetch(url, { ...opts, headers });
   if (res.status === 204) return {};
   const ct = res.headers.get('content-type') || '';
@@ -17,7 +16,12 @@ async function requestJSON(url, opts = {}, authRequired = false) {
   }
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(data.detail || data.error || `Request failed (status ${res.status})`);
+    if (data.non_field_errors) throw new Error(data.non_field_errors[0]);
+    if (data.detail) throw new Error(data.detail);
+    if (data.error) throw new Error(data.error);
+    const key = Object.keys(data)[0];
+    const msg = Array.isArray(data[key]) ? data[key][0] : data[key];
+    throw new Error(msg);
   }
   return data;
 }

@@ -4,7 +4,6 @@ export default async function buildHeaders(authRequired = false) {
 
   const access = localStorage.getItem("access_token");
   const refresh = localStorage.getItem("refresh_token");
-
   let validAccess = access;
 
   const verifyRes = await fetch(
@@ -12,7 +11,7 @@ export default async function buildHeaders(authRequired = false) {
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token: access }),
+      body: JSON.stringify({ token: access })
     }
   );
 
@@ -22,7 +21,7 @@ export default async function buildHeaders(authRequired = false) {
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refresh }),
+        body: JSON.stringify({ refresh })
       }
     );
 
@@ -38,5 +37,6 @@ export default async function buildHeaders(authRequired = false) {
   }
 
   headers.Authorization = `Bearer ${validAccess}`;
+  headers["Content-Type"] = "application/json";
   return headers;
 }

@@ -85,7 +85,7 @@ export default function UserProfile() {
 
   const handleUsernameChange = async () => {
     setError("");
-    if (newUsername.length < 3) return setError("Username must be at least 3 characters.");
+    if (newUsername.length < 1) return setError("Username must be at least 1 characters.");
     try {
       const headers = await buildHeaders(true);
       const res = await fetch(`${API_URL}/auth/change_username`, {

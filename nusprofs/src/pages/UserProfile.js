@@ -1,5 +1,5 @@
 import React, { useContext, useState, useEffect, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { API_URL } from "../services/auth";
 import { deleteReview } from "../services/reviews";
@@ -22,6 +22,7 @@ function StarDisplay({ value }) {
 
 export default function UserProfile() {
   const { user, loading, logout, refreshUser } = useContext(AuthContext);
+  const navigate = useNavigate();
 
   const [editingUsername, setEditingUsername] = useState(false);
   const [newUsername, setNewUsername] = useState("");
@@ -139,7 +140,19 @@ export default function UserProfile() {
   };
 
   if (loading) return <p>Loading your profile…</p>;
-  if (!user) return <p>Please <Link to="/login">log in</Link>.</p>;
+
+  if (!user) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#f0fcff", padding: "2rem" }}>
+        <div style={{
+          maxWidth: "700px", margin: "0 auto", padding: "1.5rem",
+          background: "#fff", borderRadius: "8px", boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
+        }}>
+          <p>Please <Link to="/login">log in</Link>.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: "100vh", background: "#f0fcff", padding: "2rem" }}>
@@ -150,6 +163,14 @@ export default function UserProfile() {
         <h1>Your Profile</h1>
         <p><strong>Username:</strong> {user.username}</p>
         <p><strong>Email:</strong> {user.email}</p>
+
+        {user.is_admin && (
+          <p>
+            <a href="https://nusprofs-api.onrender.com/admin/" target="_blank" rel="noopener noreferrer">
+              Go to Admin Panel
+            </a>
+          </p>
+        )}
 
         <div style={{ marginBottom: "1rem" }}>
           {editingUsername ? (
@@ -204,7 +225,14 @@ export default function UserProfile() {
 
         {error && <p style={{ color: "red", marginBottom: "1rem" }}>{error}</p>}
 
-        <button onClick={logout}>Logout</button>
+        <button
+          onClick={() => {
+            logout();
+            navigate("/");
+          }}
+        >
+          Logout
+        </button>
 
         <h2 style={{ marginTop: "2rem" }}>Your Reviews</h2>
 

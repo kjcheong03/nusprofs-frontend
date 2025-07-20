@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useContext } from "react";
 import { useParams, Link } from "react-router-dom";
 import { API_URL } from "../services/auth";
 import buildHeaders from "../components/buildHeaders";
+import { AuthContext } from "../context/AuthContext";
 import {
   FaStar,
   FaStarHalfAlt,
@@ -24,6 +25,7 @@ function StarDisplay({ value }) {
 
 export default function OtherUserProfile() {
   const { username } = useParams();
+  const { user } = useContext(AuthContext);
 
   const [reviews, setReviews] = useState([]);
   const [nextUrl, setNextUrl] = useState(null);
@@ -61,17 +63,13 @@ export default function OtherUserProfile() {
   }, []);
 
   useEffect(() => {
-    setReviews([]);
+    if (!user) {
+      setReviews([]);
+      return;
+    }
     const initialUrl = `${API_URL}/reviews/users/${encodeURIComponent(username)}`;
     loadPage(initialUrl, true);
-  }, [username, loadPage]);
-
-  if (loading && reviews.length === 0) {
-    return <p>Loading {username}’s reviews…</p>;
-  }
-  if (error) {
-    return <p style={{ color: "red" }}>Error: {error}</p>;
-  }
+  }, [username, user, loadPage]);
 
   const profLinkStyle = {
     color: "#0077cc",
@@ -94,30 +92,43 @@ export default function OtherUserProfile() {
           {username}’s Reviews
         </h1>
 
-        {reviews.length === 0
-          ? <p>{username} has not written any reviews yet.</p>
-          : reviews.map(r => (
-            <div key={r.id} style={{ borderBottom: "1px solid #ddd", padding: "1rem 0" }}>
-              <Link to={`/professor/${r.prof_id}`} style={profLinkStyle}>
-                {r.prof_name}
-              </Link>
-              <p style={{ margin: "0.5rem 0" }}>
-                <strong>Module:</strong> {r.module_code} — {r.module_name}
-              </p>
-              <p style={{ margin: "0.5rem 0", display: "flex", alignItems: "center" }}>
-                <strong style={{ marginRight: "0.5rem" }}>Rating:</strong>
-                <StarDisplay value={r.rating} />
-                <span style={{ marginLeft: "0.5rem", color: "#555" }}>
-                  ({r.rating.toFixed(1)})
-                </span>
-              </p>
-              <p style={{ margin: "0.5rem 0" }}>{r.text}</p>
-              <p style={{ fontSize: "0.8rem", color: "#555", margin: "0.25rem 0" }}>
-                {new Date(r.timestamp).toLocaleString()}
-              </p>
-            </div>
-          ))
-        }
+        {loading && reviews.length === 0 && (
+          <p>Loading {username}’s reviews…</p>
+        )}
+
+        {error && (
+          <p style={{ color: "red" }}>Error: {error}</p>
+        )}
+
+        {!loading && !error && reviews.length === 0 && (
+          user ? (
+            <p>{username} has not written any reviews yet.</p>
+          ) : (
+            <p>Please <Link to="/login">log in</Link> to view this user’s reviews.</p>
+          )
+        )}
+
+        {reviews.map(r => (
+          <div key={r.id} style={{ borderBottom: "1px solid #ddd", padding: "1rem 0" }}>
+            <Link to={`/professor/${r.prof_id}`} style={profLinkStyle}>
+              {r.prof_name}
+            </Link>
+            <p style={{ margin: "0.5rem 0" }}>
+              <strong>Module:</strong> {r.module_code} — {r.module_name}
+            </p>
+            <p style={{ margin: "0.5rem 0", display: "flex", alignItems: "center" }}>
+              <strong style={{ marginRight: "0.5rem" }}>Rating:</strong>
+              <StarDisplay value={r.rating} />
+              <span style={{ marginLeft: "0.5rem", color: "#555" }}>
+                ({r.rating.toFixed(1)})
+              </span>
+            </p>
+            <p style={{ margin: "0.5rem 0" }}>{r.text}</p>
+            <p style={{ fontSize: "0.8rem", color: "#555", margin: "0.25rem 0" }}>
+              {new Date(r.timestamp).toLocaleString()}
+            </p>
+          </div>
+        ))}
 
         {nextUrl && (
           <div style={{ textAlign: "center", marginTop: "1rem" }}>

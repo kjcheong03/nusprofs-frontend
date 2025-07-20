@@ -1,9 +1,11 @@
 import React, { useContext } from 'react';
-import { Link, useMatch, useResolvedPath } from 'react-router-dom';
+import { Link, useMatch, useResolvedPath, useLocation, useNavigate } from 'react-router-dom';
 import { AuthContext } from './context/AuthContext';
 
 export default function Navbar() {
   const { isLoggedIn, user, logout, loading } = useContext(AuthContext);
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const navStyle = {
     display: 'flex',
@@ -44,6 +46,15 @@ export default function Navbar() {
     color: '#0077cc',
   };
 
+  const handleLogout = () => {
+    logout();
+    const isUserProfile = location.pathname === "/profile";
+    const isOtherUserProfile = /^\/user\/[^/]+$/.test(location.pathname);
+    if (isUserProfile || isOtherUserProfile) {
+      navigate("/");
+    }
+  };
+
   return (
     <nav style={navStyle}>
       <div style={leftGroup}>
@@ -74,7 +85,7 @@ export default function Navbar() {
               <Link to="/profile" style={profileLink}>
                 Welcome, {user.username}
               </Link>
-              <button onClick={logout} style={logoutBtn}>
+              <button onClick={handleLogout} style={logoutBtn}>
                 Logout
               </button>
             </>

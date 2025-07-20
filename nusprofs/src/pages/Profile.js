@@ -522,7 +522,8 @@ export default function Profile() {
         try {
           const data = await fetchPaginated(
             `${API_URL}/reviews/${reviewId}/replies`,
-            1
+            1,
+            isLoggedIn
           );
           const fetchedReplies = data.results.map((rep) => ({
             ...rep,
